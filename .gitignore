@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.env
+*.log
+.DS_Store
+
+# AI assistant tooling — local to this machine, never committed
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.cursor/
+.aider*
