@@ -1,0 +1,14 @@
+[profile.default]
+src = "contracts"
+test = "contracts/test"
+out = "contracts/out"
+libs = ["node_modules", "lib"]
+solc_version = "0.8.26"
+optimizer = true
+optimizer_runs = 200
+
+remappings = [
+  "@ethereum-attestation-service/eas-contracts/=node_modules/@ethereum-attestation-service/eas-contracts/",
+  "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/",
+  "forge-std/=lib/forge-std/src/",
+]

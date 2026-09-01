@@ -28,6 +28,12 @@ describe('attestationCodec — real EAS SDK encoding, no network needed', () => 
     expect(encodeAttestationData(sample)).toMatch(/^0x[0-9a-f]+$/)
   })
 
+  it('encodes to exactly 128 bytes (4 static fields x 32-byte ABI words) — CopySightResolver.sol hardcodes this length to validate payloads on-chain, so this test guards against silent drift', () => {
+    const encoded = encodeAttestationData(sample)
+    const byteLength = (encoded.length - 2) / 2
+    expect(byteLength).toBe(128)
+  })
+
   it('round-trips the copyScore boundary value 0', () => {
     const encoded = encodeAttestationData({ ...sample, copyScore: 0 })
     expect(decodeAttestationData(encoded).copyScore).toBe(0)

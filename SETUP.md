@@ -39,6 +39,39 @@ Living checklist. Update as items resolve — don't let this go stale.
 - [x] **`attestationCodec.ts` extracted out of the adapter** so encode/decode has real coverage against the actual EAS SDK — not mocked. `test/blockchain/soneium/attestationCodec.test.ts` proves the schema string round-trips correctly through the real `SchemaEncoder`, including 0 and 100 boundary values. This was previously untestable because `SoneiumEASAdapter` can't even be constructed without a private key.
 - [x] `test/e2e/SoneiumAttestation.e2e.test.ts` written — full live-network suite (create, confirm, retrieve, verify, and an honest test documenting that EAS does *not* dedupe identical input on its own). Uses `describe.skipIf()` gated on `COPYSIGHT_ATTESTER_PRIVATE_KEY` + `COPYSIGHT_SCHEMA_UID` — currently skips cleanly, activates itself with zero code changes once both are set.
 
+## Hardening pass (this session, no blockers needed)
+
+- **Fixed a real bug**: `BlockchainProofService.createBlockchainProof()` had no error handling — if `adapter.createAttestation()` threw (RPC error, reverted tx), the stored proof was left stuck at `PENDING` forever instead of reflecting failure. Now wrapped in try/catch, marks the record `FAILED` and rethrows. Covered by a new test (`test/services/BlockchainProofService.test.ts`).
+- **Added an explicit timeout** to `SoneiumEASAdapter.waitForConfirmation()` (60s, verified against ethers' actual `Provider.waitForTransaction` type signature) — without it, a slow/stuck RPC could hang indefinitely instead of resolving to `PENDING`.
+- **Added a minimal structured logger** (`src/core/logging/logger.ts`, no external dependency) and wired it into `BlockchainProofService`'s state transitions — matches the "Monitoring & Logging" shared service from the architecture diagram without pulling in a full logging framework for an MVP this size.
+- `npm test` → **36 passing, 6 skipped** (up from 35/6).
+
+## Second milestone: CopySightResolver.sol — DRAFT, decision still in process
+
+Built directly off the production-milestone diagram Architect shared. **Status correction: the overall decision to actually adopt a custom resolver — not just the `revocable` flag detail — is still being worked out, not finalized.** Treat everything below as a verified, ready-to-review draft, not a locked-in piece of the architecture. "Tested" here means the code correctly does what it claims, not that the approach itself is confirmed.
+
+Compiled and tested against **real, locally-deployed SchemaRegistry + EAS contracts** (not mocks).
+
+- `contracts/CopySightResolver.sol` — implements exactly the 4 responsibilities from the diagram: authorized-attesters-only, payload validation, CopyScore 0-100 validation, revocation validation. Signer rotation via owner-controlled `authorizeAttester()`/`deauthorizeAttester()` (supports multiple attesters, not just one).
+- `contracts/test/CopySightResolver.t.sol` — **13/13 Foundry tests passing**, `forge build` clean.
+- `foundry.toml` — src=`contracts`, test=`contracts/test`, remappings into `node_modules` for `@ethereum-attestation-service/eas-contracts` and `@openzeppelin/contracts` (kept consistent with npm as the dependency source of truth, same as the TS side).
+- New dependencies: `@openzeppelin/contracts` (v5.6.1, for `Ownable` — verified its v5 constructor needs an explicit `initialOwner`, not assumed), `forge-std` (installed as a git submodule via `forge install`, not committed).
+
+**Important discovery, verified against EAS's actual `EAS.sol` source, not assumed:** EAS's core `_revoke()` already enforces "only the original attester may revoke their own attestation" *before* our resolver's `onRevoke()` ever runs — and it's structurally impossible to revoke an attestation issued under a schema registered `revocable: false` in the first place. This means `onRevoke()` is **only reachable at all if the schema's `revocable` flag is `true`** — which is currently defaulted to `false` in `CopySightAnalysisSchema.ts`. That open question now has a concrete consequence either way: if `false` stands, this whole code path is dead (fine); if the production design wants real revocation, `revocable` needs to flip to `true` and this is where the added rule (deauthorized attesters can't revoke their old records either) lives. Needs Architect's call.
+
+**Side effects worth knowing about, not something I did directly:** `forge install foundry-rs/forge-std` staged `.gitmodules` and `lib/forge-std` via `git submodule add` (a standard, unavoidable part of how git submodules work) — staged, not committed. Separately, `forge build`/`forge install` auto-appended `cache/` and `contracts/out/` to `.gitignore` on its own, which is expected Foundry behavior and correct (build artifacts shouldn't be tracked).
+
+## Revocation / supersession flow (Phase 2 item 6)
+
+Architect confirmed the registries and AccessControl stay deferred (conditions for each spelled out, none met yet), and sharpened item 6 into something buildable now. Built and tested:
+
+- `AttestationInput`/`AttestationRecord` — added `refUID` (EAS's own native field, not part of our custom schema data — nothing added to `CopySightAnalysisSchema.ts`).
+- `TransactionStatus` — added `REVOKED`, documented as distinct from the submission-lifecycle statuses (a later discovery, not an immediate outcome).
+- `SoneiumEASAdapter` — passes `refUID` through to `eas.attest()` (defaulting to the verified real `ZERO_BYTES32` constant when omitted), returns it from `getAttestation()`.
+- `BlockchainProofService.supersedeBlockchainProof(assetId, previousAssetId, params)` — new method for the re-analysis case. Looks up the previous asset's confirmed `attestationUID` and uses it as the new attestation's `refUID` automatically, so callers don't have to fetch and pass it manually. Reuses `createBlockchainProof` entirely.
+- `AttestationVerifier.verifyNotRevoked(uid)` — the missing explicit check from Phase 2 item 7, separated from the other checks so a caller can distinguish "doesn't exist" from "existed but was revoked."
+- `npm test` → **41 passing, 6 skipped** (up from 37/6). Foundry suite unaffected, still 13/13.
+
 ## Open design questions surfaced while building — flag to Architect
 
 1. **`createBlockchainProof()` blocks until CONFIRMED** rather than returning PENDING immediately and updating status later via a background job/webhook. Simplicity choice for now — revisit if the demo needs non-blocking UX.

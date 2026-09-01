@@ -8,6 +8,8 @@ export interface BuildAttestationPayloadParams {
   copyScore: number
   analysisVersion: string
   recipient?: `0x${string}`
+  /** UID of a prior attestation this one supersedes (re-analysis case). Omit for a first-time attestation. */
+  refUID?: `0x${string}`
 }
 
 /**
@@ -34,5 +36,6 @@ export function buildAttestationPayload(params: BuildAttestationPayloadParams): 
     copyScore: params.copyScore,
     analysisVersionHash: hashAnalysisVersion(params.analysisVersion),
     recipient: params.recipient,
+    refUID: params.refUID,
   }
 }

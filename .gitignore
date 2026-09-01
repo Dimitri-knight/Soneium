@@ -5,6 +5,11 @@ coverage/
 *.log
 .DS_Store
 
+# Foundry build artifacts
+cache/
+contracts/out/
+broadcast/
+
 # AI assistant tooling — local to this machine, never committed
 .claude/
 CLAUDE.md

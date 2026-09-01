@@ -80,4 +80,54 @@ describe('BlockchainProofService', () => {
     await service.createBlockchainProof('asset-4', params)
     expect(await service.verifyBlockchainProof('asset-4')).toBe(true)
   })
+
+  it('createBlockchainProof stores refUID null by default (first-time proof)', async () => {
+    const service = new BlockchainProofService(fakeAdapter('CONFIRMED'), new InMemoryBlockchainProofStore(), 1946, SCHEMA_UID)
+    const proof = await service.createBlockchainProof('asset-first', params)
+    expect(proof.refUID).toBeNull()
+  })
+
+  it('supersedeBlockchainProof links the new proof to the previous one via refUID', async () => {
+    const store = new InMemoryBlockchainProofStore()
+    const service = new BlockchainProofService(fakeAdapter('CONFIRMED'), store, 1946, SCHEMA_UID)
+
+    const original = await service.createBlockchainProof('asset-v1', params)
+    const updated = await service.supersedeBlockchainProof('asset-v2', 'asset-v1', {
+      ...params,
+      analysisVersion: 'v1.0.1',
+    })
+
+    expect(updated.refUID).toBe(original.attestationUID)
+  })
+
+  it('supersedeBlockchainProof throws when the referenced asset has no confirmed attestation', async () => {
+    const service = new BlockchainProofService(fakeAdapter('CONFIRMED'), new InMemoryBlockchainProofStore(), 1946, SCHEMA_UID)
+    await expect(service.supersedeBlockchainProof('asset-v2', 'never-created', params)).rejects.toThrow(
+      'Cannot supersede'
+    )
+  })
+
+  it('marks the stored proof FAILED (not stuck at PENDING) when the adapter throws, and rethrows', async () => {
+    const throwingAdapter: BlockchainAdapter = {
+      async createAttestation() {
+        throw new Error('RPC unreachable')
+      },
+      async getAttestation() {
+        return null
+      },
+      async verifyAttestation() {
+        return false
+      },
+      async waitForConfirmation() {
+        return 'FAILED'
+      },
+    }
+    const store = new InMemoryBlockchainProofStore()
+    const service = new BlockchainProofService(throwingAdapter, store, 1946, SCHEMA_UID)
+
+    await expect(service.createBlockchainProof('asset-5', params)).rejects.toThrow('RPC unreachable')
+
+    const stored = await store.get('asset-5')
+    expect(stored?.status).toBe('FAILED')
+  })
 })

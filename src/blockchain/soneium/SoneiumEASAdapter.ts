@@ -1,4 +1,4 @@
-import { EAS, SchemaRegistry } from '@ethereum-attestation-service/eas-sdk'
+import { EAS, SchemaRegistry, ZERO_BYTES32 } from '@ethereum-attestation-service/eas-sdk'
 import { JsonRpcProvider, Wallet } from 'ethers'
 import type {
   AttestationInput,
@@ -84,6 +84,7 @@ export class SoneiumEASAdapter implements BlockchainAdapter {
         recipient: input.recipient ?? ZERO_ADDRESS,
         expirationTime: 0n,
         revocable: false, // must match the registered schema's own flag
+        refUID: input.refUID ?? ZERO_BYTES32,
         data: encodedData,
       },
     })
@@ -110,6 +111,7 @@ export class SoneiumEASAdapter implements BlockchainAdapter {
       schemaUID: attestation.schema as `0x${string}`,
       timestamp: BigInt(attestation.time),
       revoked: BigInt(attestation.revocationTime) > 0n,
+      refUID: attestation.refUID as `0x${string}`,
       data: decodeAttestationData(attestation.data),
     }
   }
@@ -135,7 +137,12 @@ export class SoneiumEASAdapter implements BlockchainAdapter {
   }
 
   async waitForConfirmation(transactionHash: `0x${string}`): Promise<TransactionStatus> {
-    const receipt = await this.provider.waitForTransaction(transactionHash)
+    // Explicit timeout (verified against ethers' actual Provider type,
+    // not assumed) — without one, a slow/stuck RPC could hang this call
+    // indefinitely. 60s is generous for Minato block times; returning
+    // PENDING on timeout rather than throwing keeps the caller's status
+    // model consistent instead of surfacing a raw ethers error.
+    const receipt = await this.provider.waitForTransaction(transactionHash, 1, 60_000)
     if (!receipt) return 'PENDING'
     return receipt.status === 1 ? 'CONFIRMED' : 'FAILED'
   }

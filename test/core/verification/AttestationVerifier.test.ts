@@ -39,6 +39,7 @@ describe('AttestationVerifier', () => {
     schemaUID: SCHEMA_UID,
     timestamp: 1n,
     revoked: false,
+    refUID: '0x0000000000000000000000000000000000000000000000000000000000000000',
     data: {
       assetHash: hashAsset(assetBytes),
       analysisHash: hashAnalysis(analysis),
@@ -81,5 +82,14 @@ describe('AttestationVerifier', () => {
     expect(await verifier.verifyAttester(UID)).toBe(false)
     expect(await verifier.verifyAsset(UID, assetBytes)).toBe(false)
     expect(await verifier.verifyAnalysis(UID, analysis)).toBe(false)
+    expect(await verifier.verifyNotRevoked(UID)).toBe(false)
+  })
+
+  it('verifyNotRevoked passes for an active attestation, fails for a revoked one', async () => {
+    const activeVerifier = new AttestationVerifier(fakeAdapter(validRecord), SCHEMA_UID)
+    expect(await activeVerifier.verifyNotRevoked(UID)).toBe(true)
+
+    const revokedVerifier = new AttestationVerifier(fakeAdapter({ ...validRecord, revoked: true }), SCHEMA_UID)
+    expect(await revokedVerifier.verifyNotRevoked(UID)).toBe(false)
   })
 })

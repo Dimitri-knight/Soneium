@@ -45,4 +45,16 @@ export class AttestationVerifier {
     if (!record) return false
     return record.data.analysisHash === hashAnalysis(analysis)
   }
+
+  /**
+   * Explicit revocation-status check — separated out from the other
+   * checks (rather than folded silently into a generic "is valid") so a
+   * caller can distinguish "doesn't exist" from "existed but was
+   * revoked," which matter differently to a UI.
+   */
+  async verifyNotRevoked(uid: `0x${string}`): Promise<boolean> {
+    const record = await this.adapter.getAttestation(uid)
+    if (!record) return false
+    return !record.revoked
+  }
 }

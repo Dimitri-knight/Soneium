@@ -20,4 +20,6 @@ export interface BlockchainProof {
   attester: `0x${string}` | null
   status: TransactionStatus
   timestamp: number | null
+  /** UID of the attestation this one supersedes (re-analysis case), or null for a first-time proof. */
+  refUID: `0x${string}` | null
 }
