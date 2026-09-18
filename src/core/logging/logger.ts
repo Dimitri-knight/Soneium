@@ -1,15 +1,13 @@
 export type LogContext = Record<string, unknown>
 
 /**
- * Minimal structured logger — no external dependency. Matches the
- * "Monitoring & Logging" shared service from the architecture diagram
- * without pulling in a logging framework for an MVP this size. Swap for
- * whatever CopySight's own backend already uses (pino, winston, etc.)
- * once this module is actually integrated — the point right now is just
- * that state transitions aren't silent.
+ * Minimal structured logger with no external dependency. Swap for pino,
+ * winston, etc. once this integrates with CopySight's own backend.
  */
 function write(level: 'info' | 'warn' | 'error', message: string, context: LogContext = {}) {
-  const entry = { timestamp: new Date().toISOString(), level, message, ...context }
+  // Envelope fields spread last so a context key named timestamp/level/message
+  // can't overwrite them.
+  const entry = { ...context, timestamp: new Date().toISOString(), level, message }
   const line = JSON.stringify(entry)
   if (level === 'error') console.error(line)
   else if (level === 'warn') console.warn(line)

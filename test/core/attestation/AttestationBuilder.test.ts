@@ -33,9 +33,27 @@ describe('buildAttestationPayload', () => {
     expect(() => buildAttestationPayload({ ...baseParams, copyScore: 50.5 })).toThrow()
   })
 
+  it('rejects a NaN score', () => {
+    expect(() => buildAttestationPayload({ ...baseParams, copyScore: NaN })).toThrow()
+  })
+
+  it('accepts the lower score boundary (0)', () => {
+    expect(buildAttestationPayload({ ...baseParams, copyScore: 0 }).copyScore).toBe(0)
+  })
+
+  it('accepts the upper score boundary (100)', () => {
+    expect(buildAttestationPayload({ ...baseParams, copyScore: 100 }).copyScore).toBe(100)
+  })
+
   it('passes through an optional recipient', () => {
     const recipient = '0x000000000000000000000000000000000000aa' as const
     const payload = buildAttestationPayload({ ...baseParams, recipient })
     expect(payload.recipient).toBe(recipient)
+  })
+
+  it('passes through an optional refUID', () => {
+    const refUID = '0x000000000000000000000000000000000000000000000000000000000000ff' as const
+    const payload = buildAttestationPayload({ ...baseParams, refUID })
+    expect(payload.refUID).toBe(refUID)
   })
 })

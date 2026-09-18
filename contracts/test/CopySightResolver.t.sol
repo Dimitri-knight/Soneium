@@ -37,9 +37,9 @@ contract CopySightResolverTest is Test {
 
         // Registered revocable=true here specifically to exercise
         // onRevoke() below — this is the resolver's own test suite
-        // proving its full capability, independent of whatever
-        // `revocable` value the real production schema ends up using
-        // (see the open question flagged in CopySightResolver.sol).
+        // proving its full capability, independent of the real
+        // production schema, which is registered revocable=false
+        // (confirmed — see CopySightResolver.sol's contract-level note).
         schemaUID = registry.register(SCHEMA, resolver, true);
     }
 
@@ -85,6 +85,20 @@ contract CopySightResolverTest is Test {
         _attestAs(authorizedAttester, badData);
     }
 
+    function test_overlongPayloadReverts() public {
+        // 160 bytes (5 words) — the other direction a payload can be the
+        // wrong length, vs. test_wrongPayloadLengthReverts' too-short case.
+        bytes memory badData = abi.encode(
+            bytes32(uint256(1)),
+            bytes32(uint256(2)),
+            uint8(50),
+            bytes32(uint256(3)),
+            bytes32(uint256(4))
+        );
+        vm.expectRevert(abi.encodeWithSelector(CopySightResolver.InvalidPayloadLength.selector, badData.length));
+        _attestAs(authorizedAttester, badData);
+    }
+
     // --- onAttest: copyScore 0-100 validation ---
 
     function test_copyScoreAbove100Reverts() public {
@@ -104,10 +118,20 @@ contract CopySightResolverTest is Test {
 
     // --- signer rotation ---
 
+    function test_constructorEmitsAttesterAuthorizedForInitialAttester() public {
+        address freshAttester = makeAddr("freshAttester");
+
+        vm.expectEmit(true, false, false, false);
+        emit CopySightResolver.AttesterAuthorized(freshAttester);
+        new CopySightResolver(eas, freshAttester, owner);
+    }
+
     function test_ownerCanAuthorizeNewAttester() public {
         address newAttester = makeAddr("newAttester");
         assertFalse(resolver.isAuthorizedAttester(newAttester));
 
+        vm.expectEmit(true, false, false, false, address(resolver));
+        emit CopySightResolver.AttesterAuthorized(newAttester);
         vm.prank(owner);
         resolver.authorizeAttester(newAttester);
 
@@ -117,11 +141,51 @@ contract CopySightResolverTest is Test {
     }
 
     function test_ownerCanDeauthorizeAttester() public {
+        vm.expectEmit(true, false, false, false, address(resolver));
+        emit CopySightResolver.AttesterDeauthorized(authorizedAttester);
         vm.prank(owner);
         resolver.deauthorizeAttester(authorizedAttester);
 
         vm.expectRevert(abi.encodeWithSelector(CopySightResolver.UnauthorizedAttester.selector, authorizedAttester));
         _attestAs(authorizedAttester, _validPayload(50));
+    }
+
+    function test_deauthorizedAttesterCanBeReauthorizedAndAttestAndRevokeAgain() public {
+        // Full rotate-out/rotate-back-in cycle — not just "deauthorize
+        // blocks" and "authorize enables" tested in isolation.
+        vm.prank(owner);
+        resolver.deauthorizeAttester(authorizedAttester);
+
+        vm.expectRevert(abi.encodeWithSelector(CopySightResolver.UnauthorizedAttester.selector, authorizedAttester));
+        _attestAs(authorizedAttester, _validPayload(40));
+
+        vm.expectEmit(true, false, false, false, address(resolver));
+        emit CopySightResolver.AttesterAuthorized(authorizedAttester);
+        vm.prank(owner);
+        resolver.authorizeAttester(authorizedAttester);
+
+        bytes32 uid = _attestAs(authorizedAttester, _validPayload(65));
+        assertTrue(uid != EMPTY_UID);
+
+        vm.prank(authorizedAttester);
+        eas.revoke(RevocationRequest({ schema: schemaUID, data: RevocationRequestData({ uid: uid, value: 0 }) }));
+    }
+
+    function test_authorizingZeroAddressIsAHarmlessNoOpByDesign() public {
+        // No zero-address guard exists in _setAuthorized. This documents
+        // that as an accepted no-op by design, not an oversight: a real
+        // attest()/revoke() call's msg.sender can never be address(0), so
+        // isAuthorizedAttester[address(0)] being set true has no
+        // exploitable effect.
+        assertFalse(resolver.isAuthorizedAttester(address(0)));
+
+        vm.prank(owner);
+        resolver.authorizeAttester(address(0));
+        assertTrue(resolver.isAuthorizedAttester(address(0)));
+
+        vm.prank(owner);
+        resolver.deauthorizeAttester(address(0));
+        assertFalse(resolver.isAuthorizedAttester(address(0)));
     }
 
     function test_nonOwnerCannotAuthorizeAttester() public {

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Documentation | CopySight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#02020A;
+    --gray-700:#374151;
+    --gray-600:#4B5563;
+    --gray-500:#6B7280;
+    --gray-200:#E5E7EB;
+    --gray-100:#F3F4F6;
+    --gray-50:#F9FAFB;
+    --code-bg:#1F2937;
+    --lavender:#F3F0FF;
+    --yellow:#FFF07C;
+    --navy:#05204A;
+    --red:#DC2626;
+    --sans:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:#fff;color:var(--ink);font-family:var(--sans);font-size:15px;
+       line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:var(--navy)}
+  p{margin:10px 0;color:var(--gray-700)}
+  code{font-family:var(--mono);font-size:.86em;background:var(--gray-100);
+       padding:.1em .36em;border-radius:4px;color:var(--ink)}
+  pre{font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--code-bg);color:#fff;
+      padding:16px 18px;border-radius:6px;overflow-x:auto;margin:12px 0}
+  pre code{background:none;padding:0;color:inherit;font-size:inherit}
+  pre .c{color:#9CA3AF}
+  pre .k{color:#FFF07C}
+  pre .s{color:#A5C9F5}
+
+  header.top{border-bottom:1px solid var(--gray-200);background:#fff}
+  .top-in{max-width:1080px;margin:0 auto;padding:16px 28px;display:flex;align-items:center;
+          justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .mark{display:flex;align-items:center;gap:10px;color:var(--ink)}
+  .mark svg{display:block;flex:none}
+  .mark span{font-size:18px;font-weight:600;letter-spacing:-.02em}
+  .vtag{background:var(--yellow);color:var(--ink);border-radius:100px;padding:4px 13px;
+        font-family:var(--mono);font-size:11px;font-weight:500}
+
+  .page{max-width:1080px;margin:0 auto;padding:0 28px 80px;display:grid;
+        grid-template-columns:210px 1fr;gap:48px}
+  nav{position:sticky;top:0;align-self:start;padding-top:36px;max-height:100vh;overflow-y:auto}
+  nav b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+        color:var(--gray-500);font-weight:600;margin:18px 0 7px}
+  nav b:first-child{margin-top:0}
+  nav a{display:block;padding:3px 0;font-size:13.5px;color:var(--gray-600);text-decoration:none}
+  nav a:hover{color:var(--ink)}
+  main{min-width:0;padding-top:36px}
+
+  h1{font-size:34px;font-weight:700;letter-spacing:-.025em;margin:0 0 6px}
+  .sub{color:var(--gray-600);font-size:16px;margin:0 0 30px}
+  h2{font-size:24px;font-weight:600;letter-spacing:-.015em;margin:38px 0 10px;
+     padding-bottom:8px;border-bottom:1px solid var(--gray-200)}
+  h3{font-size:19px;font-weight:600;margin:26px 0 8px}
+  h4{font-size:15px;font-weight:600;margin:20px 0 4px}
+  section{scroll-margin-top:14px}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+     color:var(--gray-500);font-weight:600;border-bottom:1px solid var(--gray-200);padding:0 14px 8px 0}
+  td{border-bottom:1px solid var(--gray-200);padding:10px 14px 10px 0;vertical-align:top;color:var(--gray-700)}
+  td:first-child{white-space:nowrap;color:var(--ink)}
+  tbody tr:hover{background:var(--gray-50)}
+
+  .endpoint{border:1px solid var(--gray-200);border-radius:8px;padding:24px;margin:14px 0 0}
+  .route{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+  .verb{background:var(--ink);color:#fff;border-radius:5px;padding:3px 10px;
+        font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.04em}
+  .path{font-family:var(--mono);font-size:16px;font-weight:600}
+
+  .status{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:600;
+          border-radius:5px;padding:2px 9px;margin-right:10px}
+  .s2{background:#ECFDF5;color:#047857}
+  .s4{background:#FEF2F2;color:var(--red)}
+  .s5{background:var(--gray-100);color:var(--gray-700)}
+  .errhead{display:flex;align-items:baseline;gap:4px;margin:22px 0 2px}
+  .errhead h4{margin:0}
+
+  .req{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.04em;
+       background:var(--yellow);color:var(--ink);border-radius:100px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+  .cond{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.04em;
+        background:var(--gray-100);color:var(--gray-600);border-radius:100px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+
+  .callout{border:1px solid var(--gray-200);border-left:3px solid var(--yellow);
+           background:var(--lavender);border-radius:6px;padding:13px 16px;margin:16px 0;font-size:13.5px}
+  .callout p{margin:0;color:var(--gray-700)}
+  .callout b{color:var(--ink)}
+  .callout ul{margin:7px 0 0;padding-left:20px;color:var(--gray-700)}
+
+  ul{color:var(--gray-700)}
+  li{margin:5px 0}
+
+  footer{border-top:1px solid var(--gray-200);margin-top:10px}
+  .foot{max-width:1080px;margin:0 auto;padding:20px 28px 40px;font-size:12px;color:var(--gray-500);
+        display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+  @media (max-width:860px){
+    .page{grid-template-columns:1fr;gap:0;padding:0 18px 60px}
+    nav{position:static;max-height:none;padding-top:26px;padding-bottom:20px;border-bottom:1px solid var(--gray-200)}
+    .top-in,.foot{padding-left:18px;padding-right:18px}
+    h1{font-size:27px}
+    .endpoint{padding:18px}
+  }
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="mark">
+      <svg width="26" height="25" viewBox="0 0 125 121" fill="currentColor" role="img" aria-label="CopySight">
+        <path d="M124.341 58.5594C123.283 26.098 95.8217 0 62.1947 0C28.5677 0 1.10671 26.098 0.0486466 58.5594C0.0243233 59.2042 0 59.8491 0 60.5061C0 61.1631 0.0243233 61.8079 0.0486466 62.4528C1.10671 94.9141 28.5677 121.012 62.1947 121.012C95.8217 121.012 123.283 94.9141 124.341 62.4528C124.365 61.8079 124.389 61.1631 124.389 60.5061C124.389 59.8491 124.365 59.2042 124.341 58.5594ZM62.1947 10.6339C84.6938 10.6339 103.848 24.638 110.878 44.1051C99.8229 34.335 83.2344 24.1148 62.1947 24.1148C41.1551 24.1148 24.5666 34.335 13.4994 44.1051C20.5289 24.638 39.6957 10.6339 62.1947 10.6339ZM53.864 35.5031C43.4171 39.2018 35.9499 49.0327 35.9499 60.4939C35.9499 71.9552 43.4293 81.786 53.864 85.4848C43.2469 83.7327 27.2664 78.0021 12.2225 60.4939C27.2664 42.9736 43.2469 37.2551 53.864 35.5031ZM62.1947 110.366C39.6957 110.366 20.541 96.362 13.4994 76.8949C24.5666 86.665 41.1551 96.8852 62.1947 96.8852C83.2344 96.8852 99.8229 86.665 110.878 76.8949C103.848 96.362 84.6816 110.366 62.1947 110.366ZM73.7118 84.8764C80.6926 81.859 86.1046 75.9459 88.4396 68.5971L78.4184 64.7523C76.5698 71.6145 70.4525 76.6273 63.0461 76.6273C54.2653 76.6273 47.1264 69.4123 47.1264 60.4939C47.1264 51.5756 54.2653 44.4214 63.0461 44.4214C70.4525 44.4214 76.5698 49.3612 78.4184 56.2355L88.4396 52.3908C86.0559 45.0298 80.6561 39.1288 73.6753 36.1114C84.1587 38.4475 98.5459 44.6404 112.155 60.4939C98.5581 76.3352 84.1709 82.5404 73.6997 84.8764H73.7118Z"/>
+      </svg>
+      <span>CopySight</span>
+    </div>
+    <span class="vtag">API v1</span>
+  </div>
+</header>
+
+<div class="page">
+<nav>
+  <b>Getting started</b>
+  <a href="#base-url">Base URL</a>
+  <a href="#auth">Authentication</a>
+  <a href="#quickstart">Quick start</a>
+  <b>Endpoint</b>
+  <a href="#verify">POST /verify</a>
+  <a href="#body">Request body</a>
+  <a href="#media">Supported media</a>
+  <b>Responses</b>
+  <a href="#image-response">Image response</a>
+  <a href="#schema">Response schema</a>
+  <a href="#video-response">Video response</a>
+  <b>Options</b>
+  <a href="#advanced">Advanced detection</a>
+  <a href="#sensitivity">Video sensitivity</a>
+  <b>Reference</b>
+  <a href="#errors">Error responses</a>
+  <a href="#notes">Implementation notes</a>
+</nav>
+
+<main>
+
+<h1>API Documentation</h1>
+<p class="sub">Your guide to integrating with the CopySight API.</p>
+
+<section id="base-url">
+  <h2>Base URL</h2>
+  <p>All API requests should be made to the following base URL:</p>
+<pre><code>https://api.copysight.ai/v1</code></pre>
+  <p>All requests must be made over HTTPS.</p>
+</section>
+
+<section id="auth">
+  <h2>Authentication</h2>
+  <p>Authentication is by API key, sent as a request header on every call.</p>
+  <table>
+    <thead><tr><th>Key</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>X-API-Key</code></td><td>Your unique API key for authentication.</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><p><b>Keep your key server-side.</b> An API key authorizes analysis on your
+     account. Do not embed it in browser code, mobile apps, or anything distributed to end users —
+     call the API from your own backend instead.</p></div>
+</section>
+
+<section id="quickstart">
+  <h2>Quick start</h2>
+<pre><code><span class="c"># analyze an image file</span>
+curl -X POST <span class="s">"https://api.copysight.ai/v1/verify"</span> \
+  -H <span class="s">"X-API-Key: $COPYSIGHT_API_KEY"</span> \
+  -F <span class="s">"file=@artwork.png"</span>
+
+<span class="c"># analyze from a URL, with advanced detection</span>
+curl -X POST <span class="s">"https://api.copysight.ai/v1/verify"</span> \
+  -H <span class="s">"X-API-Key: $COPYSIGHT_API_KEY"</span> \
+  -F <span class="s">"url=https://example-bucket.s3.amazonaws.com/artwork.png?X-Amz-Signature=…"</span> \
+  -F <span class="s">"advanced=true"</span>
+
+<span class="c"># analyze a video</span>
+curl -X POST <span class="s">"https://api.copysight.ai/v1/verify"</span> \
+  -H <span class="s">"X-API-Key: $COPYSIGHT_API_KEY"</span> \
+  -F <span class="s">"file=@spot.mp4"</span> \
+  -F <span class="s">"sensitivity=0.10"</span></code></pre>
+</section>
+
+<section id="verify">
+  <h2>Endpoints</h2>
+  <div class="endpoint">
+    <div class="route"><span class="verb">POST</span><span class="path">/verify</span></div>
+    <p>Analyzes an image or video to detect intellectual property and returns a list of findings.</p>
+
+    <h4 id="headers">Headers</h4>
+    <table>
+      <thead><tr><th>Key</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>X-API-Key</code></td><td>Your unique API key for authentication.</td></tr>
+        <tr><td><code>Content-Type</code></td><td><code>multipart/form-data</code> for uploads and for any request that sets options. <code>application/json</code> is accepted when submitting a URL only.</td></tr>
+      </tbody>
+    </table>
+
+    <h4 id="body">Request Body</h4>
+    <p>Send a <code>multipart/form-data</code> payload. Provide the media either as a
+       <code>file</code> upload or as a <code>url</code> — one media item per request.</p>
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>file</code><span class="cond">conditional</span></td><td>File</td><td>—</td>
+            <td>The image or video to analyze. Required unless <code>url</code> is provided. Takes precedence if both are sent.</td></tr>
+        <tr><td><code>url</code><span class="cond">conditional</span></td><td>String</td><td>—</td>
+            <td>A publicly reachable or pre-signed <code>http(s)</code> URL to the media. Required unless <code>file</code> is provided. The URL must grant access on its own — no credentials are sent with the fetch.</td></tr>
+        <tr><td><code>advanced</code></td><td>Boolean</td><td><code>false</code></td>
+            <td>Enables advanced detection. Accepts <code>true</code>, <code>1</code> or <code>yes</code>. See <a href="#advanced">Advanced detection</a>.</td></tr>
+        <tr><td><code>sensitivity</code></td><td>Number</td><td><code>0.15</code></td>
+            <td>Video only. Threshold from 0 to 1 controlling how many frames are analyzed. See <a href="#sensitivity">Video sensitivity</a>. Ignored for images.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><p><b>Options must be sent as form fields.</b> <code>advanced</code> and
+       <code>sensitivity</code> are read from the <code>multipart/form-data</code> body. They are not
+       read from the query string or from a JSON body — a request that sends the URL as
+       <code>?url=</code> or as JSON runs with the defaults. If you need either option, send the
+       request as multipart with <code>url</code> as a form field.</p></div>
+
+    <h4 id="media">Supported media</h4>
+    <table>
+      <thead><tr><th>Type</th><th>Formats</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Image</td><td>JPEG, PNG, WebP, GIF</td><td>Returns the image response schema.</td></tr>
+        <tr><td>Video</td><td>MP4, MOV, WebM, AVI, MKV, M4V, MPEG, MPG, 3GP</td>
+            <td>Detected from the content type or file extension. Returns the video response schema.</td></tr>
+      </tbody>
+    </table>
+    <p>Maximum media size is 200 MB when submitting a <code>url</code>, and 32 MB for a direct
+       <code>file</code> upload — use a URL for anything larger. The endpoint fetches a submitted URL
+       for up to 120 seconds and identifies itself as <code>CopysightBot/1.0</code>; allow that agent
+       if your origin filters by user agent.</p>
+  </div>
+</section>
+
+<section id="image-response">
+  <h2>Successful Response (200 OK)</h2>
+  <p>For an image, a JSON object containing a <code>contains_face</code> boolean and a
+     <code>detected_ips</code> array of detected intellectual property objects.</p>
+<pre><code>{
+  <span class="k">"contains_face"</span>: false,
+  <span class="k">"detected_ips"</span>: [
+    {
+      <span class="k">"name"</span>: <span class="s">"Mickey Mouse"</span>,
+      <span class="k">"category"</span>: <span class="s">"Characters"</span>,
+      <span class="k">"author"</span>: <span class="s">"Walt Disney and Ub Iwerks"</span>,
+      <span class="k">"owner"</span>: <span class="s">"The Walt Disney Company"</span>,
+      <span class="k">"bounding_box"</span>: {
+        <span class="k">"x"</span>: 0.277,
+        <span class="k">"y"</span>: 0.469,
+        <span class="k">"width"</span>: 0.021,
+        <span class="k">"height"</span>: 0.022
+      },
+      <span class="k">"similarity"</span>: 0.98
+    }
+  ]
+}</code></pre>
+  <p>An empty <code>detected_ips</code> array means no intellectual property was detected.</p>
+</section>
+
+<section id="schema">
+  <h2>Response Object Schema</h2>
+  <table>
+    <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>contains_face</code></td><td>Boolean</td><td>Whether the image contains a human face.</td></tr>
+      <tr><td><code>detected_ips</code></td><td>Array</td><td>List of detected intellectual property objects. Each item contains the fields below.</td></tr>
+      <tr><td><code>name</code></td><td>String</td><td>Name of the intellectual property.</td></tr>
+      <tr><td><code>category</code></td><td>String</td><td>Category of the IP. Can be <code>Trademarks</code>, <code>Brand and iconic designs</code>, <code>Characters</code>, <code>Celebrities and famous people</code>, <code>Art and artists</code>.</td></tr>
+      <tr><td><code>author</code></td><td>String</td><td>Original creator of the intellectual property. Returns <code>"N/A"</code> when not applicable or unknown.</td></tr>
+      <tr><td><code>owner</code></td><td>String</td><td>Current owner or rights holder of the intellectual property. Returns <code>"N/A"</code> when not applicable or unknown.</td></tr>
+      <tr><td><code>bounding_box</code></td><td>Object</td><td>Normalized coordinates and dimensions of the detected IP (values from 0 to 1): <code>{"x": number, "y": number, "width": number, "height": number}</code>. <code>x</code> and <code>y</code> are the top-left corner; multiply by the image's pixel width and height to draw the box.</td></tr>
+      <tr><td><code>similarity</code></td><td>Number</td><td>The confidence/similarity score of the detection (0-1).</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="video-response">
+  <h2>Video Response (200 OK)</h2>
+  <p>Video returns a different shape. Instead of an array, <code>detected_ips</code> is an object
+     keyed by IP name, and each entry lists the timecodes where that IP appears. The presence of
+     <code>media_type</code> tells you which shape you received.</p>
+<pre><code>{
+  <span class="k">"media_type"</span>: <span class="s">"video"</span>,
+  <span class="k">"frames_analyzed"</span>: 12,
+  <span class="k">"duration_seconds"</span>: 27.4,
+  <span class="k">"contains_face"</span>: true,
+  <span class="k">"detected_ips"</span>: {
+    <span class="k">"Mickey Mouse"</span>: {
+      <span class="k">"category"</span>: <span class="s">"Characters"</span>,
+      <span class="k">"author"</span>: <span class="s">"Walt Disney and Ub Iwerks"</span>,
+      <span class="k">"owner"</span>: <span class="s">"The Walt Disney Company"</span>,
+      <span class="k">"max_similarity"</span>: 0.98,
+      <span class="k">"occurrence_count"</span>: 2,
+      <span class="k">"occurrences"</span>: [
+        {
+          <span class="k">"timecode"</span>: 4.0,
+          <span class="k">"timecode_label"</span>: <span class="s">"0:04"</span>,
+          <span class="k">"similarity"</span>: 0.91,
+          <span class="k">"bounding_box"</span>: { <span class="k">"x"</span>: 0.10, <span class="k">"y"</span>: 0.20, <span class="k">"width"</span>: 0.22, <span class="k">"height"</span>: 0.14 }
+        },
+        {
+          <span class="k">"timecode"</span>: 19.0,
+          <span class="k">"timecode_label"</span>: <span class="s">"0:19"</span>,
+          <span class="k">"similarity"</span>: 0.98,
+          <span class="k">"bounding_box"</span>: { <span class="k">"x"</span>: 0.55, <span class="k">"y"</span>: 0.31, <span class="k">"width"</span>: 0.19, <span class="k">"height"</span>: 0.12 }
+        }
+      ]
+    }
+  }
+}</code></pre>
+
+  <h3>Video Response Schema</h3>
+  <table>
+    <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>media_type</code></td><td>String</td><td>Always <code>"video"</code>. Present only on video responses — use it to tell the two shapes apart.</td></tr>
+      <tr><td><code>frames_analyzed</code></td><td>Number</td><td>How many frames were analyzed.</td></tr>
+      <tr><td><code>duration_seconds</code></td><td>Number</td><td>Timecode of the last analyzed frame, in seconds.</td></tr>
+      <tr><td><code>contains_face</code></td><td>Boolean</td><td>Whether any analyzed frame contains a human face.</td></tr>
+      <tr><td><code>detected_ips</code></td><td>Object</td><td>Map keyed by IP name. Each value contains the fields below.</td></tr>
+      <tr><td><code>category</code></td><td>String</td><td>Category of the IP, from the same list as the image schema.</td></tr>
+      <tr><td><code>author</code></td><td>String</td><td>Original creator of the intellectual property.</td></tr>
+      <tr><td><code>owner</code></td><td>String</td><td>Current owner or rights holder.</td></tr>
+      <tr><td><code>max_similarity</code></td><td>Number</td><td>Highest similarity score across all occurrences (0-1).</td></tr>
+      <tr><td><code>occurrence_count</code></td><td>Number</td><td>How many analyzed frames the IP appeared in.</td></tr>
+      <tr><td><code>occurrences</code></td><td>Array</td><td>Chronological list of appearances. Each item contains the fields below.</td></tr>
+      <tr><td><code>timecode</code></td><td>Number</td><td>Seconds from the start of the video.</td></tr>
+      <tr><td><code>timecode_label</code></td><td>String</td><td>The same timecode formatted as <code>M:SS</code>.</td></tr>
+      <tr><td><code>similarity</code></td><td>Number</td><td>Confidence score for that frame (0-1).</td></tr>
+      <tr><td><code>bounding_box</code></td><td>Object</td><td>Normalized position of the IP within that frame, same shape as the image schema.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="advanced">
+  <h2>Advanced detection</h2>
+  <p>Setting <code>advanced=true</code> switches to a precision-oriented detector. The response
+     schema is unchanged — only which detections are returned, and how they are named.</p>
+  <table>
+    <thead><tr><th>Behaviour</th><th>Default</th><th><code>advanced=true</code></th></tr></thead>
+    <tbody>
+      <tr><td>Optimized for</td><td>Coverage — returns all plausible matches</td><td>Precision — withholds matches it cannot assert confidently</td></tr>
+      <tr><td>People and public figures</td><td>Returned like any other match</td><td>Returned only on unambiguous facial evidence. Synthetic or AI-generated faces are not identified as real individuals.</td></tr>
+      <tr><td><code>name</code> values</td><td>Descriptive, may include qualifiers — <code>"Nike Logo and Swoosh Design"</code></td><td>Canonical short form, stable across requests — <code>"Nike Logo"</code>. Safe to use as a lookup key.</td></tr>
+      <tr><td>Generic elements</td><td>Poses, garments and common motifs may appear</td><td>Not returned</td></tr>
+      <tr><td>Low-confidence matches</td><td>Returned with a low <code>similarity</code></td><td>Returned in the 0.5–0.7 range, or withheld</td></tr>
+      <tr><td>Response schema</td><td colspan="2">Identical in both modes</td></tr>
+    </tbody>
+  </table>
+  <p>Use the default for broad sweeps and triage where a human reviews the output. Use
+     <code>advanced=true</code> for clearance checks, automated gates, and results shown to a
+     customer or counterparty.</p>
+  <p>The same input generally returns fewer detections with <code>advanced=true</code>. That is the
+     mode working as intended, not an error — do not treat a lower count as a failed request.</p>
+  <p>For video, <code>advanced</code> applies to every analyzed frame.</p>
+</section>
+
+<section id="sensitivity">
+  <h2>Video sensitivity</h2>
+  <p>Videos are not analyzed frame by frame. Frames are sampled along the timeline and analyzed only
+     when they differ visually from the previously analyzed frame by more than
+     <code>sensitivity</code>, up to a maximum of 50 frames per video. The first frame is always
+     analyzed.</p>
+  <table>
+    <thead><tr><th>Value</th><th>Effect</th><th>Good for</th></tr></thead>
+    <tbody>
+      <tr><td><code>0.05</code>–<code>0.10</code></td><td>Analyzes more frames; catches brief appearances</td><td>Fast-cut edits, short-form ads, evidence capture</td></tr>
+      <tr><td><code>0.15</code></td><td>Default balance</td><td>General content</td></tr>
+      <tr><td><code>0.25</code>–<code>0.40</code></td><td>Analyzes scene changes only</td><td>Long-form, static or single-shot footage</td></tr>
+    </tbody>
+  </table>
+  <p>Because selection is driven by visual change rather than length, a long static clip may yield a
+     single frame while a short rapid-cut clip may reach the 50-frame maximum. Read
+     <code>frames_analyzed</code> on the response to see the coverage you actually got. If you need a
+     specific moment covered exactly, extract that frame yourself and submit it as an image.</p>
+  <p>A value that cannot be parsed as a number falls back to the default without an error.</p>
+</section>
+
+<section id="errors">
+  <h2>Error Responses</h2>
+  <p>When an error occurs, the API returns an appropriate HTTP status code along with a JSON error
+     response. Branch on the status code rather than on the message text, which may change.</p>
+
+  <div class="errhead"><span class="status s4">401</span><h4>Unauthorized</h4></div>
+  <p>Invalid or missing API key. Ensure your <code>X-API-Key</code> header is correct.</p>
+<pre><code>{
+  <span class="k">"error"</span>: <span class="s">"Unauthorized"</span>,
+  <span class="k">"message"</span>: <span class="s">"Invalid API key"</span>
+}</code></pre>
+
+  <div class="errhead"><span class="status s4">400</span><h4>Bad Request</h4></div>
+  <p>No media supplied, an unsupported URL scheme, a URL that could not be fetched, or an invalid or
+     corrupted file.</p>
+<pre><code>{
+  <span class="k">"error"</span>: <span class="s">"Bad Request"</span>,
+  <span class="k">"message"</span>: <span class="s">"Unsupported file format or corrupted file"</span>
+}</code></pre>
+
+  <div class="errhead"><span class="status s4">413</span><h4>Payload Too Large</h4></div>
+  <p>The media exceeds the size limit for the submission method. Submit large media by
+     <code>url</code> rather than as an upload.</p>
+
+  <div class="errhead"><span class="status s4">422</span><h4>Unprocessable Entity</h4></div>
+  <p>The media was accepted but could not be analyzed — an image that failed to decode, a video
+     whose container or codec could not be read, or a video from which no analyzable frames could be
+     selected. Re-encoding to H.264 MP4, or lowering <code>sensitivity</code>, resolves most cases.</p>
+
+  <div class="errhead"><span class="status s4">429</span><h4>Too Many Requests</h4></div>
+  <p>Rate limit exceeded. Please wait before making another request.</p>
+<pre><code>{
+  <span class="k">"error"</span>: <span class="s">"Too Many Requests"</span>,
+  <span class="k">"message"</span>: <span class="s">"Rate limit exceeded. Try again later."</span>,
+  <span class="k">"retry_after"</span>: 60
+}</code></pre>
+  <p>Honour <code>retry_after</code>, in seconds, when it is present.</p>
+
+  <div class="errhead"><span class="status s5">500</span><h4>Internal Server Error</h4></div>
+  <p>An unexpected error occurred. Safe to retry once.</p>
+
+  <div class="errhead"><span class="status s5">503</span><h4>Service Unavailable</h4></div>
+  <p>Temporary capacity issue. Retry with exponential backoff.</p>
+
+  <h3>Retry summary</h3>
+  <table>
+    <thead><tr><th>Status</th><th>Retry</th></tr></thead>
+    <tbody>
+      <tr><td><code>400</code>, <code>413</code>, <code>422</code></td><td>No — fix the request or the media first</td></tr>
+      <tr><td><code>401</code></td><td>No — check the key</td></tr>
+      <tr><td><code>429</code></td><td>Yes, after <code>retry_after</code></td></tr>
+      <tr><td><code>500</code></td><td>Once</td></tr>
+      <tr><td><code>503</code></td><td>Yes, with exponential backoff and jitter</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="notes">
+  <h2>Implementation notes</h2>
+  <ul>
+    <li><b>Check <code>media_type</code> before parsing.</b> <code>detected_ips</code> is an array for
+        images and an object for video. This is the single most common integration bug.</li>
+    <li><b>One media item per request.</b> If both <code>file</code> and <code>url</code> are sent,
+        <code>file</code> wins.</li>
+    <li><b>Set a generous timeout.</b> Video analysis scales with the number of frames and can take
+        several minutes. Run it asynchronously rather than inside a synchronous user request.</li>
+    <li><b>Requests are not idempotent.</b> Retries re-run the request; build retry logic accordingly.</li>
+    <li><b>Identical media returns identical results.</b> Resubmitting the exact same bytes in the same
+        mode returns the same response, quickly. Re-encoded or resized media is treated as new.</li>
+    <li><b>Apply your own threshold.</b> <code>similarity</code> is a confidence signal, not a verdict.
+        Pick a cutoff that suits your workflow — for example auto-flag above 0.9 and queue 0.6–0.9 for
+        review.</li>
+    <li><b>Store the full response.</b> Bounding boxes and timecodes are what make a detection
+        reviewable later.</li>
+    <li><b>Detection is not a legal determination.</b> The API reports detected intellectual property
+        and the evidence for it. It does not assess infringement, fair use, or licensing status.</li>
+  </ul>
+  <p>Questions or a problem with an integration: <a href="mailto:hello@copysight.ai">hello@copysight.ai</a>.
+     Include the request timestamp, the response status, and the first 8 characters of your key —
+     never the full key.</p>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div class="foot">
+    <div>CopySight · API Documentation · v1</div>
+    <div><a href="https://copysight.ai">copysight.ai</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,7 +1,10 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { sha256, stringToBytes } from 'viem'
+import type { Signer } from 'ethers'
 import { SoneiumEASAdapter } from '../../src/blockchain/soneium/SoneiumEASAdapter.js'
+import { EnvSignerService } from '../../src/blockchain/signing/SignerService.js'
 import { config } from '../../src/blockchain/soneium/config.js'
+import { encodeAttestationData } from '../../src/blockchain/soneium/attestationCodec.js'
 import type { AttestationInput, TransactionStatus } from '../../src/blockchain/BlockchainAdapter.js'
 
 /**
@@ -26,7 +29,8 @@ describe.skipIf(!isConfigured)('SoneiumEASAdapter — live Minato E2E', () => {
   let confirmationStatus: TransactionStatus
 
   beforeAll(async () => {
-    adapter = new SoneiumEASAdapter()
+    const signer = await new EnvSignerService().getSigner('minato')
+    adapter = new SoneiumEASAdapter(signer)
     input = {
       assetHash: sha256(stringToBytes(`e2e-asset-${Date.now()}`)),
       analysisHash: sha256(stringToBytes('e2e-analysis')),
@@ -71,4 +75,260 @@ describe.skipIf(!isConfigured)('SoneiumEASAdapter — live Minato E2E', () => {
     // data twice with two different UIDs. This documents that fact rather
     // than asserting protection that doesn't actually exist at this layer.
   }, 60_000)
+})
+
+/**
+ * SoneiumEASAdapter's branching logic (verifyAttestation, getAttestation,
+ * waitForConfirmation) previously had zero coverage outside the live-network
+ * suite above, which never runs without a funded wallet + registered schema.
+ * These tests exercise that logic with a mocked eas-sdk (EAS/SchemaRegistry)
+ * and a fake ethers Signer — no network, no live wallet needed — always run.
+ *
+ * Deliberately uses `vi.doMock` + `vi.resetModules()` + a dynamic `import()`
+ * per test (same pattern SignerService.test.ts already uses for per-test env
+ * scenarios), NOT a file-level `vi.mock`. A file-level mock would also
+ * replace eas-sdk for the live-E2E describe block above whenever it actually
+ * runs (once a funded wallet + schema are configured), silently turning that
+ * suite into a mocked, non-real test — exactly what it must never do.
+ */
+describe('SoneiumEASAdapter — unit (mocked EAS SDK + fake signer, no network)', () => {
+  const originalEnv = { ...process.env }
+  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+  const SCHEMA_UID = `0x${'ab'.repeat(32)}` as const
+  const OTHER_SCHEMA_UID = `0x${'cd'.repeat(32)}` as const
+  const ATTESTER = `0x${'11'.repeat(20)}` as const
+  const OTHER_ATTESTER = `0x${'22'.repeat(20)}` as const
+  const UID = `0x${'33'.repeat(32)}` as const
+
+  const sampleInput: AttestationInput = {
+    assetHash: sha256(stringToBytes('unit-test-asset')),
+    analysisHash: sha256(stringToBytes('unit-test-analysis')),
+    copyScore: 77,
+    analysisVersionHash: sha256(stringToBytes('unit-test-v1')),
+  }
+
+  afterEach(() => {
+    vi.doUnmock('@ethereum-attestation-service/eas-sdk')
+    vi.resetModules()
+    process.env = { ...originalEnv }
+  })
+
+  /** Resets the module registry, mocks eas-sdk, and re-imports SoneiumEASAdapter fresh so it picks up whatever process.env is set to at call time. */
+  async function importMockedAdapter() {
+    vi.resetModules()
+    const fakeEasInstances: Array<{
+      connect: ReturnType<typeof vi.fn>
+      attest: ReturnType<typeof vi.fn>
+      getAttestation: ReturnType<typeof vi.fn>
+    }> = []
+
+    vi.doMock('@ethereum-attestation-service/eas-sdk', async () => {
+      // Keep the real SchemaEncoder (and everything else) — attestationCodec.js
+      // is re-imported fresh in this same module-registry reset and still
+      // needs a working SchemaEncoder to encode/decode attestation data. Only
+      // EAS/SchemaRegistry (the network-talking classes) are faked.
+      const actual =
+        await vi.importActual<typeof import('@ethereum-attestation-service/eas-sdk')>(
+          '@ethereum-attestation-service/eas-sdk'
+        )
+      class FakeEAS {
+        connect = vi.fn()
+        attest = vi.fn()
+        getAttestation = vi.fn()
+        constructor(_address: string) {
+          fakeEasInstances.push(this)
+        }
+      }
+      class FakeSchemaRegistry {
+        connect = vi.fn()
+        register = vi.fn()
+        constructor(_address: string) {}
+      }
+      // Shaped to match the real package's actual CJS-interop shape (see
+      // the note at the top of SoneiumEASAdapter.ts): the source consumes
+      // this via a default import + destructure, not named imports, so
+      // the mock must expose the same fields both at the top level AND
+      // under `default` — real Node gives both for a CJS module.
+      const mocked = {
+        ...actual,
+        EAS: FakeEAS,
+        SchemaRegistry: FakeSchemaRegistry,
+      }
+      return { ...mocked, default: mocked }
+    })
+
+    const mod = await import('../../src/blockchain/soneium/SoneiumEASAdapter.js')
+    return { SoneiumEASAdapter: mod.SoneiumEASAdapter, fakeEasInstances }
+  }
+
+  function fakeSignerWithProvider(waitForTransaction: (...args: unknown[]) => Promise<unknown>): Signer {
+    return {
+      provider: { waitForTransaction },
+      getAddress: async () => ATTESTER,
+    } as unknown as Signer
+  }
+
+  function fakeSignerNoProvider(): Signer {
+    return { provider: undefined, getAddress: async () => ATTESTER } as unknown as Signer
+  }
+
+  function fakeAttestation(overrides: {
+    attester?: string
+    schema?: string
+    revocationTime?: bigint
+    data?: string
+  } = {}) {
+    return {
+      uid: UID,
+      attester: overrides.attester ?? ATTESTER,
+      recipient: '0x0000000000000000000000000000000000dead',
+      schema: overrides.schema ?? SCHEMA_UID,
+      time: 1_700_000_000n,
+      revocationTime: overrides.revocationTime ?? 0n,
+      refUID: `0x${'00'.repeat(32)}`,
+      data: overrides.data ?? encodeAttestationData(sampleInput),
+    }
+  }
+
+  describe('waitForConfirmation', () => {
+    it('returns PENDING when the provider call rejects with an ethers TIMEOUT error, instead of throwing', async () => {
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const timeoutError = Object.assign(new Error('timeout'), { code: 'TIMEOUT' })
+      const adapter = new SoneiumEASAdapter(
+        fakeSignerWithProvider(async () => {
+          throw timeoutError
+        })
+      )
+      await expect(adapter.waitForConfirmation(UID)).resolves.toBe('PENDING')
+    })
+
+    it('rethrows a non-timeout rejection rather than downgrading it to PENDING', async () => {
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const rpcError = new Error('connection reset')
+      const adapter = new SoneiumEASAdapter(
+        fakeSignerWithProvider(async () => {
+          throw rpcError
+        })
+      )
+      await expect(adapter.waitForConfirmation(UID)).rejects.toThrow('connection reset')
+    })
+
+    it('returns CONFIRMED when the receipt status is 1', async () => {
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      await expect(adapter.waitForConfirmation(UID)).resolves.toBe('CONFIRMED')
+    })
+
+    it('returns FAILED when the receipt status is 0', async () => {
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 0 })))
+      await expect(adapter.waitForConfirmation(UID)).resolves.toBe('FAILED')
+    })
+
+    it('throws when the signer has no provider attached', async () => {
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerNoProvider())
+      await expect(adapter.waitForConfirmation(UID)).rejects.toThrow(/no provider attached/)
+    })
+  })
+
+  describe('getAttestation', () => {
+    it('returns null when the attester is the zero address', async () => {
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ attester: ZERO_ADDRESS }))
+      expect(await adapter.getAttestation(UID)).toBeNull()
+    })
+  })
+
+  describe('verifyAttestation', () => {
+    it('returns false when the attestation is not found (attester is the zero address)', async () => {
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ attester: ZERO_ADDRESS }))
+      expect(await adapter.verifyAttestation(UID)).toBe(false)
+    })
+
+    it('returns false when the attestation schemaUID does not match the configured schema', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ schema: OTHER_SCHEMA_UID }))
+      expect(await adapter.verifyAttestation(UID)).toBe(false)
+    })
+
+    it('returns false when the attester does not match config.attesterAddress (set)', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      process.env.COPYSIGHT_ATTESTER_ADDRESS = ATTESTER
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ attester: OTHER_ATTESTER }))
+      expect(await adapter.verifyAttestation(UID)).toBe(false)
+    })
+
+    it('skips the attester check and returns true when config.attesterAddress is unset', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      process.env.COPYSIGHT_ATTESTER_ADDRESS = ''
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ attester: OTHER_ATTESTER }))
+      expect(await adapter.verifyAttestation(UID)).toBe(true)
+    })
+
+    it('returns true for a correctly-attested, non-revoked attestation matching schema and attester', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      process.env.COPYSIGHT_ATTESTER_ADDRESS = ATTESTER
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation())
+      expect(await adapter.verifyAttestation(UID)).toBe(true)
+    })
+
+    it('returns false when the attestation has been revoked', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      process.env.COPYSIGHT_ATTESTER_ADDRESS = ATTESTER
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ revocationTime: 123n }))
+      expect(await adapter.verifyAttestation(UID)).toBe(false)
+    })
+  })
+
+  describe('createAttestation', () => {
+    it('retries a transient eas.attest() failure via withRetry and eventually succeeds', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+
+      const fakeTx = { wait: async () => UID, receipt: { hash: `0x${'44'.repeat(32)}` } }
+      fakeEasInstances[0].attest
+        .mockRejectedValueOnce(new Error('transient RPC error'))
+        .mockResolvedValueOnce(fakeTx)
+
+      const result = await adapter.createAttestation(sampleInput)
+      expect(result.uid).toBe(UID)
+      expect(fakeEasInstances[0].attest).toHaveBeenCalledTimes(2)
+    })
+
+    it('throws when COPYSIGHT_SCHEMA_UID is not configured for the adapter\'s environment', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = ''
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      await expect(adapter.createAttestation(sampleInput)).rejects.toThrow(/COPYSIGHT_SCHEMA_UID is not set/)
+    })
+  })
+
+  describe('environment selection', () => {
+    it('validates schemaUID against the environment the adapter was constructed with, not always Minato', async () => {
+      // Mainnet configured with one schemaUID, Minato's left at another —
+      // constructing the adapter with 'mainnet' must check the attestation
+      // against the Mainnet schemaUID, not silently fall back to Minato's.
+      process.env.COPYSIGHT_SCHEMA_UID = OTHER_SCHEMA_UID
+      process.env.COPYSIGHT_MAINNET_SCHEMA_UID = SCHEMA_UID
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })), 'mainnet')
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ schema: SCHEMA_UID }))
+      expect(await adapter.verifyAttestation(UID)).toBe(true)
+    })
+  })
 })

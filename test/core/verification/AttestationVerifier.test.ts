@@ -64,6 +64,28 @@ describe('AttestationVerifier', () => {
     expect(await wrongVerifier.verifyAttester(UID)).toBe(false)
   })
 
+  it('verifyAttester passes regardless of attester when no allowlist is configured', async () => {
+    const noAllowlistVerifier = new AttestationVerifier(fakeAdapter(validRecord), SCHEMA_UID)
+    expect(await noAllowlistVerifier.verifyAttester(UID)).toBe(true)
+
+    const recordFromOther: AttestationRecord = { ...validRecord, attester: OTHER_ATTESTER }
+    const stillNoAllowlist = new AttestationVerifier(fakeAdapter(recordFromOther), SCHEMA_UID)
+    expect(await stillNoAllowlist.verifyAttester(UID)).toBe(true)
+  })
+
+  it('verifyAttester compares addresses case-insensitively', async () => {
+    const mixedCaseAttester = '0x000000000000000000000000000000000000AA' as const
+    const recordWithMixedCase: AttestationRecord = { ...validRecord, attester: mixedCaseAttester }
+    const differentCaseExpected = '0x000000000000000000000000000000000000aa' as const
+
+    const verifier = new AttestationVerifier(
+      fakeAdapter(recordWithMixedCase),
+      SCHEMA_UID,
+      differentCaseExpected
+    )
+    expect(await verifier.verifyAttester(UID)).toBe(true)
+  })
+
   it('verifyAsset passes only when bytes hash to the recorded assetHash', async () => {
     const verifier = new AttestationVerifier(fakeAdapter(validRecord), SCHEMA_UID)
     expect(await verifier.verifyAsset(UID, assetBytes)).toBe(true)

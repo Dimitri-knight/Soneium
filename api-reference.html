@@ -1,0 +1,197 @@
+<title>Copysight API Reference</title>
+<style>
+:root {
+  --bg: #fbfbfa; --surface: #f2f2ef; --ink: #20242a; --muted: #5d6673;
+  --line: #e0e1dd; --accent: #0f766e; --code-bg: #f2f2ef;
+  --get: #2563a8; --post: #177245; --warn-bg: #fdf6e6; --warn-line: #e8d9ae;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16191d; --surface: #1e2228; --ink: #e4e7ea; --muted: #98a1ab;
+    --line: #2c313a; --accent: #4cc0b4; --code-bg: #1e2228;
+    --get: #7cb1e8; --post: #7ec89a; --warn-bg: #262117; --warn-line: #4a3f22;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #16191d; --surface: #1e2228; --ink: #e4e7ea; --muted: #98a1ab;
+  --line: #2c313a; --accent: #4cc0b4; --code-bg: #1e2228;
+  --get: #7cb1e8; --post: #7ec89a; --warn-bg: #262117; --warn-line: #4a3f22;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto; padding: 48px 24px 96px; max-width: 52rem;
+  background: var(--bg); color: var(--ink);
+  font: 15.5px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+h1 { font-size: 26px; line-height: 1.2; margin: 0 0 4px; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0 0 28px; }
+h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+     color: var(--muted); margin: 44px 0 10px; }
+h3 { font-size: 16.5px; margin: 30px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+code, pre {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre {
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px 14px; overflow-x: auto; line-height: 1.5; margin: 10px 0;
+}
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 14px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line);
+         vertical-align: top; }
+th { font-size: 12px; letter-spacing: .05em; text-transform: uppercase;
+     color: var(--muted); font-weight: 600; }
+td:first-child { font-family: ui-monospace, Menlo, monospace; font-size: 13px;
+                 white-space: nowrap; }
+.endpoint { display: flex; align-items: baseline; gap: 10px; margin: 34px 0 6px;
+            flex-wrap: wrap; }
+.method { font-size: 12px; font-weight: 700; letter-spacing: .04em;
+          padding: 2px 8px; border-radius: 5px; color: var(--bg); }
+.method.get { background: var(--get); } .method.post { background: var(--post); }
+.path { font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 600; }
+.note { background: var(--warn-bg); border: 1px solid var(--warn-line);
+        border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-size: 14px; }
+.muted { color: var(--muted); }
+ul { margin: 8px 0; padding-left: 22px; }
+li { margin: 3px 0; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
+</style>
+
+<h1>Copysight API</h1>
+<p class="sub">IP detection for images and video — logos, characters, celebrities, brand designs, artwork.</p>
+
+<h2>Basics</h2>
+<table>
+  <tr><td>Base URL</td><td><code>https://api.copysight.ai</code></td></tr>
+  <tr><td>Auth</td><td>Header <code>x-api-key: cs_live_…</code> on every request</td></tr>
+  <tr><td>Media</td><td>JPEG, PNG, WebP, GIF · video MP4, MOV, WebM, MKV and other common containers</td></tr>
+</table>
+
+<h3>Scoring modes</h3>
+<ul>
+  <li><strong>Basic</strong> (default) — each detection carries a <code>similarity</code> score 0–1.</li>
+  <li><strong>Advanced</strong> (<code>advanced=true</code>) — higher-accuracy mode. Same response format; <code>similarity</code> values are more discriminative.</li>
+</ul>
+
+<hr>
+
+<div class="endpoint"><span class="method post">POST</span><span class="path">/v1/verify</span></div>
+<p>Synchronous analysis. Waits and returns the result. Best for images and short videos.
+(<code>POST /</code> is equivalent.)</p>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>file</td><td>Media bytes (multipart). Provide <em>either</em> file or url.</td></tr>
+  <tr><td>url</td><td>http(s) media URL, e.g. a pre-signed S3 link (≤ 200 MB). Also accepted as <code>?url=</code> or JSON body <code>{"url": …}</code>.</td></tr>
+  <tr><td>advanced</td><td><code>true</code> — advanced scoring mode (see Scoring modes).</td></tr>
+  <tr><td>face_detection_threshold</td><td>0–1. Drops <em>Celebrities and famous people</em> detections with similarity below the value. Other categories unaffected.</td></tr>
+  <tr><td>scene_change_sensitivity</td><td>Video only, 0–1 (default 0.15). Frame-difference cutoff for which frames get analyzed; lower = more frames analyzed. (<code>sensitivity</code> is a deprecated alias.)</td></tr>
+</table>
+
+<pre><code>curl -X POST "https://api.copysight.ai/v1/verify" -H "x-api-key: $KEY" \
+  -F "file=@image.jpg" -F "advanced=true" -F "face_detection_threshold=0.5"</code></pre>
+
+<p><strong>Image response</strong></p>
+<pre><code>{
+  "detected_ips": [{
+    "name": "Mercedes-Benz Logo",
+    "category": "Trademarks",           // Trademarks | Brand and iconic designs |
+                                        // Characters | Celebrities and famous people |
+                                        // Art and artists
+    "author": "Gottlieb Daimler",
+    "owner": "Mercedes-Benz Group AG",
+    "bounding_box": {"x": 0.42, "y": 0.76, "width": 0.06, "height": 0.08},  // 0-1, top-left origin
+    "similarity": 0.97
+  }],
+  "contains_face": false
+}</code></pre>
+
+<p><strong>Video response</strong> — detections keyed by IP name with every occurrence:</p>
+<pre><code>{
+  "media_type": "video",
+  "frames_analyzed": 31,
+  "duration_seconds": 76.0,             // timecode of last analyzed frame
+  "source_duration_seconds": 86.0,      // true video length
+  "resolution": {"width": 1280, "height": 720},
+  "contains_face": true,
+  "detected_ips": {
+    "Mercedes-Benz Logo": {
+      "category": "Trademarks", "author": "…", "owner": "…",
+      "max_similarity": 0.97, "occurrence_count": 8,
+      "occurrences": [{"timecode": 18.0, "timecode_label": "0:18",
+                       "similarity": 0.96, "bounding_box": {…}}, …]
+    }
+  }
+}</code></pre>
+
+<hr>
+
+<div class="endpoint"><span class="method post">POST</span><span class="path">/v1/jobs</span></div>
+<p>Asynchronous analysis. Returns immediately with a job id; fetch results by polling and/or webhook. Use for large files and videos.</p>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>file</td><td>Multipart upload, &lt; ~30 MB. Exactly one of file / url / gcs_uri.</td></tr>
+  <tr><td>url</td><td>http(s) media URL (pre-signed S3 etc.). Sign for plain GET; keep valid ≥ 1 hour; pass verbatim — don't re-encode.</td></tr>
+  <tr><td>gcs_uri</td><td>From <code>POST /v1/uploads</code> — for files of any size.</td></tr>
+  <tr><td>webhook_url</td><td>Optional. HTTPS endpoint POSTed the result on completion.</td></tr>
+  <tr><td>webhook_secret</td><td>Optional. HMAC key for webhook signatures.</td></tr>
+  <tr><td>advanced, face_detection_threshold, scene_change_sensitivity</td><td>Same as the sync endpoint.</td></tr>
+</table>
+<pre><code>→ 202  {"job_id": "d4dd…", "status": "queued", "status_url": "/v1/jobs/d4dd…"}</code></pre>
+<p class="muted">Fields accepted as form data or JSON.</p>
+
+<hr>
+
+<div class="endpoint"><span class="method get">GET</span><span class="path">/v1/jobs/{job_id}</span></div>
+<p>Job status and result. Visible only to the API key that created the job.</p>
+<pre><code>{
+  "job_id": "d4dd…",
+  "status": "queued" | "processing" | "succeeded" | "failed",
+  "created_at": "…", "started_at": "…", "finished_at": "…",   // ISO 8601
+  "credits_charged": 31,
+  "result": { … },        // when succeeded — same shape as sync responses
+  "error": "…",           // when failed
+  "webhook": {"url": "…", "delivered": true, "last_status": 200, "attempts": 1}
+}                          // webhook block present only if one was configured</code></pre>
+
+<hr>
+
+<div class="endpoint"><span class="method post">POST</span><span class="path">/v1/uploads</span></div>
+<p>Upload session for large files (no size limit). Bytes go directly to storage, not through the API.</p>
+<pre><code>curl -X POST "https://api.copysight.ai/v1/uploads" -H "x-api-key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "movie.mp4", "content_type": "video/mp4"}'
+→ 201 {"upload_url": "https://storage.googleapis.com/…", "gcs_uri": "gs://…"}
+
+curl -X PUT --upload-file movie.mp4 "$UPLOAD_URL"    # no auth header needed
+# then create a job with {"gcs_uri": …}</code></pre>
+<p class="muted">The session is single-use and valid for 24 hours — complete the upload and create the job within that window. Chunked resumable uploads are supported.</p>
+
+<hr>
+
+<h2>Webhooks</h2>
+<p>When a job reaches <code>succeeded</code> or <code>failed</code>, its full status payload (identical to <code>GET /v1/jobs/{id}</code>) is POSTed to your <code>webhook_url</code>. 3 attempts with backoff, 15 s timeout each; delivery state is recorded on the job. Treat webhooks as a notification — polling always works.</p>
+<p>If you set <code>webhook_secret</code>, verify each delivery:</p>
+<pre><code>X-Copysight-Signature: sha256=&lt;hex&gt;
+
+# HMAC-SHA256 of the RAW request body, keyed with your secret:
+expected = "sha256=" + hmac.new(secret, raw_body, hashlib.sha256).hexdigest()
+valid = hmac.compare_digest(header, expected)   # constant-time compare</code></pre>
+<p class="muted">Respond 2xx quickly (enqueue, process later) and be idempotent on <code>job_id</code> — a slow response can cause a duplicate delivery.</p>
+
+<h2>Errors</h2>
+<table>
+  <tr><th>Status</th><th>Meaning</th></tr>
+  <tr><td>400</td><td>Malformed request — missing/conflicting media source, invalid URL.</td></tr>
+  <tr><td>401</td><td>Missing, unknown, or revoked API key.</td></tr>
+  <tr><td>402</td><td>Insufficient credits.</td></tr>
+  <tr><td>404</td><td>Unknown job, or a job owned by another key.</td></tr>
+  <tr><td>413</td><td>URL payload exceeds the size cap.</td></tr>
+  <tr><td>422</td><td>Media could not be processed (corrupt / unsupported file).</td></tr>
+  <tr><td>429</td><td>API key credit limit exceeded.</td></tr>
+  <tr><td>500 / 503</td><td>Server error / transient dependency failure — retry with backoff.</td></tr>
+</table>
+<p class="note">Error bodies are JSON <code>{"error": "…"}</code> where applicable. Unknown response fields may be added at any time — ignore what you don't recognize.</p>

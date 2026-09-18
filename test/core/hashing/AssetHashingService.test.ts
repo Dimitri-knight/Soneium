@@ -17,4 +17,11 @@ describe('hashAsset', () => {
     const hash = hashAsset(new TextEncoder().encode('anything'))
     expect(hash).toMatch(/^0x[0-9a-f]{64}$/)
   })
+
+  it('hashes an empty (zero-byte) asset deterministically', () => {
+    const empty = new Uint8Array(0)
+    const hash = hashAsset(empty)
+    expect(hash).toMatch(/^0x[0-9a-f]{64}$/)
+    expect(hash).toBe(hashAsset(new Uint8Array(0)))
+  })
 })

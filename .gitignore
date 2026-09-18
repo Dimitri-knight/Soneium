@@ -5,6 +5,9 @@ coverage/
 *.log
 .DS_Store
 
+# Real sample media (real detected likenesses, several MB each) — not ours to redistribute via git
+test samples/
+
 # Foundry build artifacts
 cache/
 contracts/out/

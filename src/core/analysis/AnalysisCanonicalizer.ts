@@ -14,14 +14,31 @@ export function canonicalizeAnalysis(result: AnalysisResult): string {
 }
 
 function sortKeysDeep(value: unknown): unknown {
+  if (typeof value === 'number' && !Number.isFinite(value)) {
+    // JSON.stringify silently turns NaN/Infinity into `null`, which would let two
+    // different payloads hash the same.
+    throw new Error(`Cannot canonicalize non-finite number: ${value}`)
+  }
   if (Array.isArray(value)) return value.map(sortKeysDeep)
+  if (value instanceof Date) {
+    // A Date has no own enumerable keys, so it would otherwise canonicalize to '{}'
+    // regardless of its value.
+    throw new Error('Cannot canonicalize a Date value — normalize to an ISO string before hashing')
+  }
+  if (value instanceof Map || value instanceof Set) {
+    throw new Error(
+      `Cannot canonicalize a ${value.constructor.name} value — normalize to a plain array/object before hashing`
+    )
+  }
   if (value !== null && typeof value === 'object') {
-    return Object.keys(value as Record<string, unknown>)
-      .sort()
-      .reduce<Record<string, unknown>>((acc, key) => {
-        acc[key] = sortKeysDeep((value as Record<string, unknown>)[key])
-        return acc
-      }, {})
+    // Object.create(null) so a literal `__proto__` key lands as a normal data property
+    // instead of reassigning the accumulator's prototype (a plain `{}` would silently
+    // drop that key's value).
+    const acc = Object.create(null) as Record<string, unknown>
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      acc[key] = sortKeysDeep((value as Record<string, unknown>)[key])
+    }
+    return acc
   }
   return value
 }

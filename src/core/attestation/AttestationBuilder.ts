@@ -13,17 +13,11 @@ export interface BuildAttestationPayloadParams {
 }
 
 /**
- * Assembles the four on-chain fields (+ optional recipient) from raw
- * inputs. This is the seam between "pure hashing/canonicalization" and
- * "talk to the blockchain" — nothing here touches the network, so it's
- * fully unit-testable.
+ * Assembles the on-chain hash/score fields (+ optional recipient and refUID)
+ * from raw inputs. Pure and network-free, so it's fully unit-testable.
  *
- * NOTE on scope vs. the architect's spec: the spec also names an
- * `encodeAttestationData()` function on this module. ABI-style encoding
- * is inherently EAS-specific (Solidity type encoding via SchemaEncoder),
- * so it's implemented in SoneiumEASAdapter.ts instead — keeping this
- * file chain-agnostic. Worth confirming with Architect that's the
- * intended split, rather than assuming.
+ * ABI encoding for EAS's SchemaEncoder is chain-specific and lives in
+ * SoneiumEASAdapter.ts instead, to keep this module chain-agnostic.
  */
 export function buildAttestationPayload(params: BuildAttestationPayloadParams): AttestationInput {
   if (!Number.isInteger(params.copyScore) || params.copyScore < 0 || params.copyScore > 100) {

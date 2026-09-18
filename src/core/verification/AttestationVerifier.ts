@@ -4,14 +4,12 @@ import { hashAsset } from '../hashing/AssetHashingService.js'
 import type { BlockchainAdapter } from '../../blockchain/BlockchainAdapter.js'
 
 /**
- * Confirms a blockchain proof really belongs to CopySight and matches
- * the asset/result it claims to describe. This is the application-level
- * check that replaces a custom resolver contract for MVP — see
- * SoneiumEASAdapter.verifyAttestation() for the lower-level version this
- * builds on.
+ * Checks that a blockchain proof belongs to CopySight and matches the
+ * asset/result it claims to describe. A read-only complement to the
+ * on-chain CopySightResolver's attester enforcement — see
+ * SoneiumEASAdapter.verifyAttestation() for the lower-level version.
  *
- * Depends only on BlockchainAdapter (chain-agnostic), so it's fully
- * testable with a fake adapter — no live network needed.
+ * Depends only on BlockchainAdapter, so it's testable with a fake adapter.
  */
 export class AttestationVerifier {
   constructor(
@@ -46,12 +44,7 @@ export class AttestationVerifier {
     return record.data.analysisHash === hashAnalysis(analysis)
   }
 
-  /**
-   * Explicit revocation-status check — separated out from the other
-   * checks (rather than folded silently into a generic "is valid") so a
-   * caller can distinguish "doesn't exist" from "existed but was
-   * revoked," which matter differently to a UI.
-   */
+  /** Separate from the other checks so callers can distinguish "doesn't exist" from "revoked". */
   async verifyNotRevoked(uid: `0x${string}`): Promise<boolean> {
     const record = await this.adapter.getAttestation(uid)
     if (!record) return false

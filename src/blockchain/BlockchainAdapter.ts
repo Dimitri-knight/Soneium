@@ -5,11 +5,10 @@ export interface AttestationInput {
   analysisVersionHash: `0x${string}`
   recipient?: `0x${string}`
   /**
-   * UID of a prior attestation this one supersedes — e.g. a re-analysis
-   * of the same asset. Uses EAS's own native refUID field (not part of
-   * our custom schema data), matching the append-only correction
-   * pattern: the old attestation is never edited, a new one just points
-   * back at it. Omit for a first-time attestation.
+   * UID of a prior attestation this one supersedes (e.g. a re-analysis
+   * of the same asset). Uses EAS's native refUID field rather than our
+   * schema data — the old attestation is never edited, a new one just
+   * points back at it. Omit for a first-time attestation.
    */
   refUID?: `0x${string}`
 }
@@ -27,22 +26,19 @@ export interface AttestationRecord {
 }
 
 /**
- * REVOKED is distinct from the others: PENDING/SUBMITTED/CONFIRMED/FAILED
- * describe a single transaction's lifecycle right after submission.
- * REVOKED describes a *later* discovery — a previously CONFIRMED
- * attestation was subsequently revoked on-chain. Only reachable at all
- * if the schema's `revocable` flag is true (see the note in
- * CopySightAnalysisSchema.ts and CopySightResolver.sol) — still an open
- * question with Architect.
+ * REVOKED differs from the others: PENDING/SUBMITTED/CONFIRMED/FAILED
+ * track a single transaction's lifecycle, while REVOKED reflects a
+ * previously CONFIRMED attestation being revoked later on-chain. Only
+ * reachable if the schema is revocable, which this one isn't — kept
+ * for type completeness.
  */
 export type TransactionStatus = 'PENDING' | 'SUBMITTED' | 'CONFIRMED' | 'FAILED' | 'REVOKED'
 
 /**
  * Chain-agnostic interface. CopySight's core logic (hashing,
- * canonicalization, orchestration) depends only on this — never on
- * Soneium/EAS specifics directly. Adding a second chain later means a
- * new adapter implementing this interface; nothing else changes. This is
- * the concrete piece satisfying the client's portability requirement.
+ * canonicalization, orchestration) depends only on this, never on
+ * Soneium/EAS specifics directly — a second chain just means a new
+ * adapter implementing this interface.
  */
 export interface BlockchainAdapter {
   createAttestation(

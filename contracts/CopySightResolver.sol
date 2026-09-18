@@ -10,33 +10,20 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
  * @notice Attached to the CopySight_ipAnalysis EAS schema:
  *   bytes32 assetHash, bytes32 analysisHash, uint8 copyScore, bytes32 analysisVersionHash
  *
- * Implements the four responsibilities named on the architect's
- * production-milestone diagram:
- *   1. Authorized CopySight attesters only
- *   2. Payload validation
- *   3. CopyScore 0-100 validation
- *   4. Revocation validation
- * Signer rotation is owner-controlled add/remove of authorized
- * attesters — supports more than one at a time, unlike EAS's own
- * single-address AttesterResolver example.
+ * @dev Enforces: authorized attesters only, payload length, copyScore
+ * range, and revocation eligibility. Signer rotation is owner-controlled
+ * add/remove of authorized attesters, supporting more than one at a time
+ * (unlike EAS's single-address AttesterResolver example).
  *
- * IMPORTANT — verified against EAS's actual EAS.sol source, not assumed:
- * EAS's core _revoke() already enforces "only the original attester may
- * revoke their own attestation" BEFORE this resolver's onRevoke() ever
- * runs, and it's structurally impossible to revoke an attestation issued
- * under a schema registered with revocable=false in the first place. So
- * onRevoke() below is only ever reachable at all if
- * CopySightAnalysisSchema.ts's `revocable` flag is set to true — it
- * currently defaults to false. That open question now has a concrete
- * consequence: if false stands, this entire onRevoke() path is dead
- * code, which is fine; if the production design wants real revocation,
- * this is where a rule beyond EAS's own "original attester only" check
- * lives. Confirm with Architect either way.
+ * EAS's core _revoke() already enforces that only the original attester
+ * may revoke their own attestation, before onRevoke() below ever runs,
+ * and revocation is impossible at all under a schema registered with
+ * revocable=false. Since CopySightAnalysisSchema.ts sets revocable to
+ * false, onRevoke() is effectively dead code today — kept as a cheap
+ * switch to flip if real revocation is needed later; corrections
+ * currently happen by superseding an attestation via `refUID` instead.
  *
- * Deliberately NOT built: pause switches, upgradeability, fee logic —
- * matches the "don't overbuild it" direction that's shaped this whole
- * project. Add only when a real need is identified, same as this
- * contract itself was.
+ * Deliberately not built: pause switches, upgradeability, fee logic.
  */
 contract CopySightResolver is SchemaResolver, Ownable {
     event AttesterAuthorized(address indexed attester);
@@ -48,10 +35,9 @@ contract CopySightResolver is SchemaResolver, Ownable {
     error AttesterNoLongerAuthorized(address attester);
 
     /// @dev 4 static fields (bytes32, bytes32, uint8, bytes32), each
-    /// padded to one 32-byte ABI word. Verified empirically against the
-    /// real SchemaEncoder output, not just assumed — see the dedicated
-    /// length assertion in attestationCodec.test.ts, which fails loudly
-    /// if the schema ever changes shape without this being updated too.
+    /// padded to one 32-byte ABI word. See the length assertion in
+    /// attestationCodec.test.ts, which fails if the schema shape changes
+    /// without this being updated too.
     uint256 private constant EXPECTED_DATA_LENGTH = 128;
 
     mapping(address => bool) public isAuthorizedAttester;
@@ -103,13 +89,12 @@ contract CopySightResolver is SchemaResolver, Ownable {
         return true;
     }
 
-    /// @dev Called by EAS itself whenever a revocation is attempted. By
-    /// this point EAS core has ALREADY verified the caller is the
-    /// original attester (see contract-level note) — msg.sender here is
-    /// the EAS contract, not the revoker, so it can't be checked
-    /// directly. The rule added on top: an attester that's since been
-    /// deauthorized (rotated out) can't revoke their old attestations
-    /// either. Policy choice — confirm with Architect.
+    /// @dev Called by EAS itself whenever a revocation is attempted. EAS
+    /// core has already verified the caller is the original attester by
+    /// this point (msg.sender here is the EAS contract, not the
+    /// revoker). Adds the extra rule that a deauthorized attester can't
+    /// revoke their old attestations either. Unreachable while the
+    /// schema stays non-revocable (see contract-level note).
     function onRevoke(
         Attestation calldata attestation,
         uint256 /* value */
