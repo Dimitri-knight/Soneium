@@ -1,122 +1,48 @@
-Sonium Blockchain Partnership – Tech Team Brief
-Objective: Build a technical sandbox with Sonium that validates two major use cases: Proof of Creation (provenance) and IP validation before registration. The long-term goal is to make CopySight the IP validation layer for creators building on Sonium.
+# CopySight × Soneium
 
-1. Immediate Deliverables (Phase 1)
-A. Sandbox Integration
-Integrate CopySight with Sonium sandbox.
-Engineering communication will happen directly via Telegram between both technical teams.
-Use existing Sonium technical documentation for implementation.
+Proof of Creation & IP Validation, recorded on-chain via Soneium's built-in Ethereum Attestation Service (EAS). CopySight analyzes a file for copyright/IP matches; this module writes a permanent, independently-verifiable record of that analysis — a hash of the asset, a hash of the analysis, a copy score, and a hash of the model version — signed by an authorized attester and enforced by a purpose-built resolver contract.
 
-B. Proof of Creation
-Support creators registering newly created assets.
-Workflow:
-Creator creates an original image/character.
-CopySight analyzes the asset.
-Store provenance metadata on Sonium.
-Sonium becomes the immutable source of truth.
-Return provenance reference to CopySight.
-Goal:
-Immutable timestamp
-Proof of creation
-Future copyright evidence
+Currently targets Soneium's public testnet (Minato); Mainnet config exists but nothing is wired to touch it automatically.
 
-C. IP Validation Layer
-Second workflow:
-When someone uploads content to Sonium:
-image
-video
-future 3D assets
-CopySight checks:
-Known IP
-Logos
-Characters
-Celebrities
-Existing copyrighted content
-Originality score
-If risky:
-"This appears to contain protected IP. Do you own or license it?"
-This prevents people from registering Mickey Mouse, Naruto, etc., as their own IP.
+## Docs
 
-2. Pilot
-Target:
-30-day pilot.
-Questions we want answered:
-Does integration work smoothly?
-Is latency acceptable?
-Is UX simple?
-How many creators actually use it?
-Does the community understand the value?
-Are there technical blockers?
-How many API calls are generated?
-Both teams should prepare measurable success metrics.
+- **[docs/SETUP.md](docs/SETUP.md)** — the living status log: what's built, what's tested, what's blocked, and why. Start here for the full picture.
+- **[docs/project-brief.md](docs/project-brief.md)** — the original engagement brief this was scoped from.
+- `docs/client-answers.md`, `docs/*.pdf` — planning material and client Q&A from earlier in the engagement.
+- `docs/api-reference.html`, `docs/copysight-api-docs.html` — CopySight's own API docs, for reference by the demo harness.
 
-3. Commercial Direction
-Current expectation:
-Sonium itself is not expected to be the primary customer initially.
-Primary users:
-creators
-NFT projects
-entertainment projects
-ecosystem builders
-marketplaces
-Long term:
-Sonium may eventually bundle or resell CopySight as part of its creator infrastructure.
+## Setup
 
-4. Future Product Vision
-Creators registering assets receive:
-Proof of Creation
-Provenance stored on-chain
-IP validation
-Originality score
-Future copyright certificate
-Together these become the creator onboarding flow.
+```
+npm install
+cp .env.example .env   # fill in the values you have
+```
 
-5. Marketing
-This is not a one-sided blockchain integration.
-Both companies agreed it should be a true bilateral partnership:
-CopySight builds on Sonium.
-Sonium promotes CopySight as its IP validation layer.
-Joint PR after pilot.
-Marketing preparation:
-~1–2 weeks once pilot scope is finalized.
+## Scripts
 
-6. Interesting Future Opportunity
-Potential three-way collaboration:
-CopySight
-Sonium
-ByteDance (Seedance)
-Concept:
-Creators generate content (e.g. "Wes Anderson style").
-CopySight detects style/IP similarity.
-Sonium records provenance and royalty information.
-Potential future royalty distribution to creators/IP owners through blockchain.
-This is exploratory but both sides expressed interest in developing it further.
+| Command | What it does |
+|---|---|
+| `npm run verify:setup` | Sanity-checks the Minato connection — chain ID, contract bytecode present, config completeness. |
+| `npm run deploy:resolver` | One-time: deploys `CopySightResolver.sol`. Needs a funded wallet. |
+| `npm run register:schema` | One-time: registers the CopySight schema, wired to the deployed resolver. Irreversible — needs a funded wallet. |
+| `npm run manage:attester` | Authorize/deauthorize a signer address on the deployed resolver. |
+| `npm run migrate:db` | Applies the Postgres schema for `PostgresBlockchainProofStore`. |
+| `npm run demo:flow` | Runs real sample media through CopySight's live API and builds the on-chain payload — stops short of submitting it. |
+| `npm test` | Fast unit/functional suite — no external dependencies. |
+| `npm run test:devnet` | Real, unmocked integration test against a disposable local blockchain (needs `anvil`/`forge`). |
+| `npm run test:postgres` | Real, unmocked integration test against a disposable local Postgres (needs a `docker` daemon). |
 
-7. Technical Questions for Engineering
-Best way to store provenance hash and metadata on Sonium.
-Metadata schema for Proof of Creation.
-Registration/update flow.
-API authentication.
-Callback/webhook strategy.
-Throughput expectations.
-Bulk registration support.
-Certificate retrieval.
-Error handling.
-Latency targets.
+## Layout
 
-8. Immediate Next Steps
-Engineering
-Start sandbox integration.
-Connect directly with Sonium engineers on Telegram.
-Review technical documentation.
-Define Proof of Creation metadata schema.
-Product
-Define 30-day pilot KPIs.
-Prepare creator workflow.
-Design onboarding UX.
-Business
-Send pilot agreement.
-Prepare joint PR timeline.
-Define pricing assumptions based on API volume.
-Begin discussions with Sonium ecosystem projects for pilot users.
-Overall, both teams aligned on a start-small, validate-fast approach: launch a limited pilot with existing Sonium creators, measure adoption and technical performance, then expand into a broader partnership if the results are strong.
+```
+contracts/    CopySightResolver.sol + its Foundry tests
+src/          the production module — core logic, blockchain adapter, services
+scripts/      operational CLI tools (deploy, register, rotate keys, migrate)
+demo/         real-API demo harness — not part of the production module
+test/         unit/functional tests, plus real-infrastructure integration tests
+docs/         planning docs, status log, API references
+```
+
+## Status, in brief
+
+Code-complete and proven against a live-equivalent environment; the one remaining step to go live on Minato is a funded wallet. See `docs/SETUP.md` for the full story, current test counts, and open items.

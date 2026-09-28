@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { evaluateMinatoSetup } from '../../scripts/verifyMinatoSetup.js'
 
 /**
- * evaluateMinatoSetup is the pure reporting/pass-fail logic extracted
- * from verifyMinatoSetup.ts's main() — no RPC call needed to test it,
- * just fabricated versions of the four gathered facts.
+ * evaluateMinatoSetup is the pure pass/fail logic extracted from
+ * verifyMinatoSetup.ts's main(), so it's tested here with fabricated
+ * inputs instead of a real RPC call.
  */
 const passingInputs = {
   chainId: 1946,

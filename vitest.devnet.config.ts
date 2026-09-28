@@ -12,8 +12,13 @@ import { defineConfig } from 'vitest/config'
  * plain `npm test` picks up either.
  */
 export default defineConfig({
+  // Silences a harmless Vite warning about eas-sdk's sourcemaps pointing
+  // at TypeScript source not included in the published npm package —
+  // cosmetic only, never affects test results.
+  logLevel: 'error',
   test: {
     include: ['test/integration/localAnvilDevnet.test.ts'],
     testTimeout: 60_000,
+    hookTimeout: 120_000,
   },
 })

@@ -5,35 +5,27 @@ import { join } from 'node:path'
 import { ContractFactory, JsonRpcProvider, Wallet } from 'ethers'
 
 /**
- * Real, unmocked integration test against a local `anvil` chain — NOT
- * part of the default `npm test` run. Run explicitly via `npm run
- * test:devnet`. Requires the `anvil` and `forge` binaries (ship with
- * Foundry, already a project dependency for contracts/) on PATH.
+ * Real, unmocked integration test against a local `anvil` chain — not
+ * part of the default `npm test` run. Run via `npm run test:devnet`.
+ * Requires `anvil` and `forge` (Foundry) on PATH.
  *
- * Why this exists: a manual local dry run (see SETUP.md, "Local dry
- * run against a real anvil chain") deployed fresh SchemaRegistry/EAS
- * contracts to a throwaway anvil chain and ran the actual, unmodified
- * project scripts against it instead of real Minato — and immediately
- * caught a real bug (eas-sdk's package.json missing "type": "module"
- * breaks named imports under real Node/tsx execution, even though every
- * existing *mocked* test missed it entirely, since nothing had ever
- * really executed SoneiumEASAdapter's real code before). This test turns
- * that one-off manual proof into something that runs automatically and
- * repeatably, so that class of bug — anything only visible when the real
- * SDK actually talks to a real chain — gets caught going forward without
- * ever needing a funded Minato wallet.
+ * Why: an earlier manual dry run against a throwaway anvil chain caught
+ * a real bug (eas-sdk's package.json missing "type": "module", which
+ * broke named imports under real Node/tsx) that every mocked test missed
+ * because nothing had actually exercised SoneiumEASAdapter against a
+ * live chain. This test automates that dry run so the same class of bug
+ * — anything only visible when the real SDK talks to a real chain — gets
+ * caught without needing a funded Minato wallet.
  *
- * Deliberately excluded from `npm test`: it shells out to real binaries
- * and does real (if local) transactions, so it's slower and has an
- * external-tool dependency the fast/hermetic default suite doesn't need.
+ * Excluded from `npm test` because it shells out to real binaries and
+ * runs real (local) transactions, which is slower and needs Foundry installed.
  */
 
 const RPC_PORT = 8646 // distinct from anvil's own default 8545, so this never collides with a manually-run instance
 const RPC_URL = `http://127.0.0.1:${RPC_PORT}`
 
-// Standard, well-known anvil/hardhat deterministic test accounts — fixed,
-// public, local-chain-only keys. Never used for anything real; safe to
-// hardcode, same as anvil's own documentation does.
+// Well-known anvil/hardhat deterministic test accounts — public,
+// local-chain-only keys, safe to hardcode.
 const DEPLOYER_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
 const DEPLOYER_ADDRESS = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
 const UNAUTHORIZED_KEY = '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d'
@@ -109,9 +101,8 @@ beforeAll(async () => {
   await resolver.waitForDeployment()
   resolverAddress = (await resolver.getAddress()) as `0x${string}`
 
-  // Env vars set BEFORE any dynamic import below — config.ts reads these
-  // eagerly at module-load time, so they must be in place first. Restored
-  // in afterAll; never written to .env.
+  // Must be set before any dynamic import below: config.ts reads these
+  // eagerly at module-load time. Restored in afterAll; never written to .env.
   process.env.SONEIUM_RPC_URL = RPC_URL
   process.env.SONEIUM_CHAIN_ID = '31337'
   process.env.SONEIUM_SCHEMA_REGISTRY_ADDRESS = schemaRegistryAddress
@@ -126,14 +117,11 @@ beforeAll(async () => {
   schemaUID = await registeringAdapter.registerSchema(resolverAddress)
   process.env.COPYSIGHT_SCHEMA_UID = schemaUID
 
-  // config.ts snapshots process.env at module-load time (evaluated once,
-  // not per-call) — the import above already cached it WITHOUT
-  // COPYSIGHT_SCHEMA_UID (set just now, after that import happened). Every
-  // `it()` below does its own fresh dynamic import, so resetting the
-  // module registry here (once) is what makes those pick up the real,
-  // now-complete env instead of the earlier, incomplete snapshot.
+  // config.ts snapshots process.env at module-load time, and the import
+  // above already cached it without COPYSIGHT_SCHEMA_UID. Reset the module
+  // registry so the `it()`s below re-import with the complete env.
   vi.resetModules()
-}, 60_000)
+}, 120_000)
 
 afterAll(() => {
   anvilProcess?.kill()

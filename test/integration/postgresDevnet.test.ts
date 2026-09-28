@@ -7,25 +7,18 @@ import { PostgresBlockchainProofStore } from '../../src/services/PostgresBlockch
 import type { BlockchainProof } from '../../src/models/BlockchainProof.js'
 
 /**
- * Real, unmocked integration test against a real local Postgres — NOT
- * part of the default `npm test` run. Run explicitly via `npm run
- * test:postgres`. Requires a reachable `docker` daemon.
+ * Real, unmocked integration test against a real local Postgres — not
+ * part of the default `npm test` run. Run via `npm run test:postgres`.
+ * Requires a reachable `docker` daemon.
  *
- * Why this exists: PostgresBlockchainProofStore was written and unit
- * tested against a *mocked* `Pool` only — SETUP.md honestly flagged that
- * the SQL itself had never executed against a real Postgres instance,
- * since no local Postgres/running Docker daemon was available at the
- * time. Once Docker was available, a one-off manual run (real INSERT,
- * SELECT, the ON CONFLICT/UPDATE path, and the BIGINT-comes-back-as-a-
- * string-from-pg case specifically) confirmed the SQL and row-mapping
- * are both actually correct — not just plausible against a mock. This
- * test turns that one-off proof into something repeatable, following the
- * same pattern as test/integration/localAnvilDevnet.test.ts.
+ * Why: PostgresBlockchainProofStore's unit tests only ever exercised a
+ * mocked Pool, so the SQL itself — the INSERT/ON CONFLICT path and the
+ * BIGINT-comes-back-as-a-string-from-pg case in particular — had never
+ * run against a real Postgres. This test covers that gap the same way
+ * localAnvilDevnet.test.ts covers the real-chain gap.
  *
- * Deliberately excluded from `npm test`: needs a real `docker` daemon,
- * pulls/starts a real container, and does real (if local, throwaway)
- * queries — slower, with an external dependency the fast/hermetic
- * default suite doesn't need.
+ * Excluded from `npm test` because it needs a real docker daemon and
+ * starts a real (throwaway) container, which is slower.
  */
 
 const CONTAINER_NAME = 'copysight-devnet-postgres-test'
@@ -75,7 +68,7 @@ beforeAll(async () => {
   const migrationsDir = join(process.cwd(), 'migrations')
   const applied = await applyMigrations(pool, migrationsDir)
   expect(applied).toBeGreaterThan(0)
-}, 60_000)
+}, 120_000)
 
 afterAll(async () => {
   await pool?.end()

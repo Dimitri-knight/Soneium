@@ -7,7 +7,7 @@ This folder exists purely to drive an end-to-end demo using **real CopySight out
 ## What's here
 
 - `CopySightClient.ts` — thin wrapper around CopySight's real, documented `/verify` endpoint.
-- `normalizeAnalysis.ts` — maps a real CopySight response into `{ copyScore, analysis }`. **Important:** CopySight's public API has no aggregate "CopyScore" field — confirmed via a real live call, not just the docs. This derives one as `round(maxSimilarity * 100)` across all detections. That's a reasonable default, not a confirmed product decision — flag it if the real aggregation rule should be something else.
+- `normalizeAnalysis.ts` — maps a real CopySight response into `{ copyScore, analysis }`. CopySight's public API has no aggregate "CopyScore" field, so this derives one as `round(maxSimilarity * 100)` across all detections. That's a reasonable default, not a settled product decision — worth confirming if the real aggregation rule should be something else.
 - `runFullFlow.ts` (`npm run demo:flow`) — runs the real pipeline against every file in `/test samples`: hash asset → call CopySight → normalize → hash analysis → build the attestation payload. **Stops there on purpose** — actual on-chain submission needs a funded Minato wallet and a registered schema, neither of which exist yet.
 
 ## Sample media

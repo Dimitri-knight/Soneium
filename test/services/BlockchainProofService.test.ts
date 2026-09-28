@@ -134,6 +134,8 @@ describe('BlockchainProofService', () => {
     // Same underlying attestation, but a distinct row under the assetId
     // actually requested — not the other asset's proof verbatim (which
     // would leave getBlockchainProof('asset-b') unable to find anything).
+    // Same underlying attestation, but its own row under 'asset-b' —
+    // not just first's proof copied verbatim.
     expect(second).toEqual({ ...first, assetId: 'asset-b' })
     expect(second.attestationUID).toBe(first.attestationUID)
 
@@ -202,7 +204,7 @@ describe('BlockchainProofService', () => {
         return { transactionHash: TX_HASH, uid: UID }
       },
       async getAttestation(uid) {
-        // Simulates: the attestation IS actually there when we check, despite the timeout.
+        // Attestation is actually there on reconciliation check, despite the timeout.
         return uid === UID
           ? {
               uid: UID,
@@ -460,8 +462,7 @@ describe('BlockchainProofService', () => {
       async save(proof) {
         saveCalls += 1
         if (saveCalls === 2) {
-          // Simulates the SUBMITTED-stage persistence write failing right
-          // after the on-chain transaction was actually accepted.
+          // The SUBMITTED-stage write fails after the on-chain tx already succeeded.
           throw new Error('db unavailable')
         }
         await inner.save(proof)
@@ -477,9 +478,8 @@ describe('BlockchainProofService', () => {
 
     await expect(service.createBlockchainProof('asset-store-fail', params)).rejects.toThrow('db unavailable')
 
-    // The first (PENDING) save succeeded before the second call failed —
-    // confirm it was never silently overwritten with a mislabeled FAILED
-    // status by a masked/secondary save.
+    // The first (PENDING) save should still stand, not get silently
+    // overwritten by the failed second write.
     const stored = await inner.get('asset-store-fail')
     expect(stored?.status).toBe('PENDING')
   })

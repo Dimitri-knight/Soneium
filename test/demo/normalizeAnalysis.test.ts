@@ -4,10 +4,9 @@ import { hashAnalysis } from '../../src/core/analysis/AnalysisCanonicalizer.js'
 import type { CopySightResponse } from '../../demo/CopySightClient.js'
 
 /**
- * Real response captured from a live call against
- * "test samples/AS_PR19_CS1.mp4" — not synthetic. It genuinely detected
- * a real celebrity at 95% similarity, confirming the API does real
- * analysis and that there is no aggregate score field in the response.
+ * Captured from a real API call against "test samples/AS_PR19_CS1.mp4".
+ * The response has no aggregate score field, which is why copyScore is
+ * derived from max_similarity across detections.
  */
 const REAL_VIDEO_RESPONSE: CopySightResponse = {
   media_type: 'video',

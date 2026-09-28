@@ -45,11 +45,9 @@ describe('attestationCodec — real EAS SDK encoding, no network needed', () => 
   })
 
   it('throws a clear error on truncated/malformed data rather than silently returning garbage fields', () => {
-    // Real, no mocking: a byte blob far too short for the 4-field
-    // schema. The underlying EAS SDK ABI-decodes positionally and
-    // throws on a length mismatch before this module's own code even
-    // runs — asserting on that here documents that malformed input
-    // fails loudly rather than the caller getting NaN/undefined fields.
+    // Byte blob far too short for the 4-field schema; the EAS SDK's ABI
+    // decoder throws on the length mismatch before this module's own
+    // code runs.
     const truncated = '0x1111111111111111111111111111111111111111111111111111111111111111'
     expect(() => decodeAttestationData(truncated)).toThrow()
   })
@@ -62,29 +60,20 @@ describe('decodeAttestationData — missing named field (mocked SDK)', () => {
   })
 
   /**
-   * The real EAS SDK's SchemaEncoder.decodeData() always returns one
-   * entry per field of the schema it was constructed with (see
-   * node_modules/@ethereum-attestation-service/eas-sdk's
-   * schema-encoder.js) — a byte blob too short/long to match just
-   * throws during ABI decoding rather than yielding a decoded array
-   * missing one named entry. So the "a named field is simply absent
-   * from the decoded array" case that decodeAttestationData's own
-   * field-presence guard defends against can't be reproduced with the
-   * real SDK — it's mocked here so that guard is still actually
-   * exercised rather than left as untested defensive code.
+   * The real EAS SDK always returns one entry per schema field — a
+   * malformed blob throws during ABI decoding rather than producing a
+   * field-missing array. The SDK is mocked here so decodeAttestationData's
+   * field-presence guard actually gets exercised.
    */
   it('throws a clear, field-naming error when the decoded payload is missing an expected field', async () => {
-    // Must reset the module registry BEFORE mocking — attestationCodec.js
-    // (and its eas-sdk import) is already cached from this file's static
-    // top-level import, so without this the dynamic import below would
-    // resolve to that same cached, un-mocked instance.
+    // Reset the module registry before mocking — attestationCodec.js is
+    // already cached from this file's top-level import, so otherwise the
+    // dynamic import below would resolve to the un-mocked instance.
     vi.resetModules()
     vi.doMock('@ethereum-attestation-service/eas-sdk', () => {
-      // Shaped to match the real package's actual CJS-interop shape (see
-      // the note at the top of attestationCodec.ts): the source consumes
-      // this via a default import + destructure, not named imports, so
-      // the mock must expose the same fields both at the top level AND
-      // under `default` — real Node gives both for a CJS module.
+      // The source consumes this via a default import + destructure, so
+      // the mock exposes the fields both at the top level and under
+      // `default`, matching the real package's CJS interop shape.
       const mocked = {
         SchemaEncoder: class {
           constructor(_schema: string) {}
@@ -92,9 +81,8 @@ describe('decodeAttestationData — missing named field (mocked SDK)', () => {
             throw new Error('not used in this test')
           }
           decodeData() {
-            // "copyScore" is entirely absent — simulates a foreign/stale
-            // schema version's payload being decoded against the current
-            // CopySight schema.
+            // copyScore is absent — simulates a stale-schema payload
+            // decoded against the current CopySight schema.
             return [
               {
                 name: 'assetHash',

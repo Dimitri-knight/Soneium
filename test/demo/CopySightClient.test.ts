@@ -2,11 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CopySightApiError, CopySightClient } from '../../demo/CopySightClient.js'
 
 /**
- * The real end-to-end demo run only ever hit 200 OK (6/6 samples
- * succeeded) — meaning CopySightClient's error handling, written
- * against the documented 401/422/429/500/503 shapes, had never actually
- * been exercised. These tests close that gap with a mocked `fetch`,
- * since triggering a real API error on demand isn't practical.
+ * The live demo run only ever hit 200 OK, so the error-handling paths for
+ * the documented 401/422/429/500/503 shapes were never exercised. Mock
+ * `fetch` here since triggering a real API error on demand isn't practical.
  */
 function mockFetch(status: number, body: unknown, headers: Record<string, string> = {}) {
   const fn = vi.fn().mockResolvedValue({
@@ -117,9 +115,8 @@ describe('CopySightClient', () => {
 
     const [, init] = fetchMock.mock.calls[0]
     const form = init.body as FormData
-    // Guards against a `if (options.sensitivity)` style bug that would
-    // silently drop a legitimate sensitivity of 0 — the implementation
-    // correctly checks `!== undefined`.
+    // Guards against an `if (options.sensitivity)` bug that would silently
+    // drop a legitimate 0 instead of checking `!== undefined`.
     expect(form.get('sensitivity')).toBe('0')
   })
 })

@@ -13,6 +13,10 @@ import { defineConfig } from 'vitest/config'
  * them rather than merging with them.
  */
 export default defineConfig({
+  // Silences a harmless Vite warning: @ethereum-attestation-service/eas-sdk
+  // ships sourcemaps pointing at TypeScript source that isn't included in
+  // the published npm package. Cosmetic only — never affects test results.
+  logLevel: 'error',
   test: {
     exclude: [
       '**/node_modules/**',

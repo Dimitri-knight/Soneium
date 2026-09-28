@@ -7,8 +7,13 @@ import { defineConfig } from 'vitest/config'
  * one file so it doesn't also require `anvil`/`forge` to be installed.
  */
 export default defineConfig({
+  // Silences a harmless Vite warning about eas-sdk's sourcemaps pointing
+  // at TypeScript source not included in the published npm package —
+  // cosmetic only, never affects test results.
+  logLevel: 'error',
   test: {
     include: ['test/integration/postgresDevnet.test.ts'],
     testTimeout: 60_000,
+    hookTimeout: 120_000,
   },
 })

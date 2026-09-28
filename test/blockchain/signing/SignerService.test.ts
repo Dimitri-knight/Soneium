@@ -2,16 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NonceManager, Wallet } from 'ethers'
 
 /**
- * config.ts computes its `environments` object once, at module load,
- * from process.env — same pattern used throughout this codebase. To
- * test different env-var scenarios in one run, each test resets the
- * module registry and re-imports fresh with process.env already set,
- * rather than mutating a cached config object.
+ * config.ts builds its `environments` object once at module load from
+ * process.env, so each test resets the module registry and re-imports
+ * fresh rather than mutating a cached config object.
  *
- * Uses Wallet.createRandom() to generate a throwaway key/address pair
- * per test, rather than hardcoding a "well-known" test key from memory
- * — sidesteps any risk of a memorized key being subtly wrong and the
- * test silently checking against an incorrect expected address.
+ * Uses Wallet.createRandom() for a throwaway key/address pair per test
+ * instead of a hardcoded key, so the expected address can't drift out
+ * of sync with the key.
  */
 describe('EnvSignerService', () => {
   const originalEnv = { ...process.env }
@@ -108,12 +105,9 @@ describe('EnvSignerService', () => {
   }, 15_000)
 
   it('returns the SAME Signer/NonceManager instance for repeated calls to the same environment, so concurrent submissions actually serialize through one shared nonce sequence', async () => {
-    // This documents and locks in the fix for the nonce-collision risk:
-    // two independently-constructed NonceManagers for the same address
-    // would each track their own in-memory nonce and could collide. A
-    // single cached instance per environment is what the class's own
-    // doc comment claims ("concurrent submissions from the same address
-    // get serialized, correctly-sequenced nonces automatically").
+    // Two independently-constructed NonceManagers for the same address
+    // would each track their own nonce and could collide; caching one
+    // instance per environment avoids that.
     const throwaway = Wallet.createRandom()
     process.env.COPYSIGHT_ATTESTER_PRIVATE_KEY = throwaway.privateKey
     process.env.SONEIUM_RPC_URL = 'https://rpc.minato.soneium.org/'

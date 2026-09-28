@@ -6,11 +6,9 @@ import { applyMigrations } from '../../scripts/migrateDatabase.js'
 import type { MigrationClient } from '../../scripts/migrateDatabase.js'
 
 /**
- * applyMigrations reads real .sql files off disk (readdirSync/readFileSync
- * against the passed-in migrationsDir), so these tests use real, disposable
- * temp directories rather than mocking the filesystem — the fake piece is
- * the Postgres client (`query`), same mocking style already used in
- * PostgresBlockchainProofStore.test.ts. No real database is touched.
+ * applyMigrations reads .sql files off disk, so these tests use real
+ * temp directories instead of mocking fs. Only the Postgres client is
+ * faked, same as in PostgresBlockchainProofStore.test.ts.
  */
 function fakeClient(queryImpl?: (sql: string) => Promise<unknown>): MigrationClient & { query: ReturnType<typeof vi.fn> } {
   return { query: vi.fn(queryImpl ?? (async () => undefined)) }

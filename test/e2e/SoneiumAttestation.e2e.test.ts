@@ -8,16 +8,13 @@ import { encodeAttestationData } from '../../src/blockchain/soneium/attestationC
 import type { AttestationInput, TransactionStatus } from '../../src/blockchain/BlockchainAdapter.js'
 
 /**
- * Real end-to-end tests against live Minato. Skipped automatically
- * unless COPYSIGHT_ATTESTER_PRIVATE_KEY and COPYSIGHT_SCHEMA_UID are
- * both set — currently blocked on the Minato faucet (wallet not funded)
- * and schema registration (pending Architect sign-off on schema
- * content). Fill in .env once unblocked; this file activates on its
- * own, no code changes needed.
+ * Live end-to-end tests against Minato. Skipped unless
+ * COPYSIGHT_ATTESTER_PRIVATE_KEY and COPYSIGHT_SCHEMA_UID are set —
+ * currently blocked on Minato faucet funding and schema sign-off. Set
+ * both in .env to activate; no code changes needed.
  *
- * Costs real (test) gas — one attestation is created in beforeAll and
- * reused across the read-only assertions below, rather than a fresh
- * transaction per test.
+ * Costs real gas, so one attestation is created in beforeAll and reused
+ * across the read-only assertions below instead of per test.
  */
 const isConfigured = Boolean(config.attesterPrivateKey && config.schemaUID)
 
@@ -70,26 +67,23 @@ describe.skipIf(!isConfigured)('SoneiumEASAdapter — live Minato E2E', () => {
   it('documents actual duplicate behavior — EAS does not dedupe identical input, produces a distinct UID', async () => {
     const second = await adapter.createAttestation(input)
     expect(second.uid).not.toBe(uid)
-    // Idempotency prevention is the caller's job (see TransactionManager's
-    // computeIdempotencyKey) — EAS itself will happily attest the same
-    // data twice with two different UIDs. This documents that fact rather
-    // than asserting protection that doesn't actually exist at this layer.
+    // EAS doesn't dedupe — it happily attests identical data twice with
+    // different UIDs. Idempotency is the caller's job (see
+    // TransactionManager.computeIdempotencyKey).
   }, 60_000)
 })
 
 /**
- * SoneiumEASAdapter's branching logic (verifyAttestation, getAttestation,
- * waitForConfirmation) previously had zero coverage outside the live-network
- * suite above, which never runs without a funded wallet + registered schema.
- * These tests exercise that logic with a mocked eas-sdk (EAS/SchemaRegistry)
- * and a fake ethers Signer — no network, no live wallet needed — always run.
+ * Exercises SoneiumEASAdapter's branching logic (verifyAttestation,
+ * getAttestation, waitForConfirmation) with a mocked eas-sdk and a fake
+ * ethers Signer — no network needed, so unlike the live suite above, this
+ * always runs.
  *
- * Deliberately uses `vi.doMock` + `vi.resetModules()` + a dynamic `import()`
- * per test (same pattern SignerService.test.ts already uses for per-test env
- * scenarios), NOT a file-level `vi.mock`. A file-level mock would also
- * replace eas-sdk for the live-E2E describe block above whenever it actually
- * runs (once a funded wallet + schema are configured), silently turning that
- * suite into a mocked, non-real test — exactly what it must never do.
+ * Uses `vi.doMock` + `vi.resetModules()` + a dynamic `import()` per test
+ * (same pattern as SignerService.test.ts) rather than a file-level
+ * `vi.mock`. A file-level mock would also replace eas-sdk for the live E2E
+ * suite above whenever it actually runs, silently turning it into a mocked
+ * test instead of a real one.
  */
 describe('SoneiumEASAdapter — unit (mocked EAS SDK + fake signer, no network)', () => {
   const originalEnv = { ...process.env }
@@ -113,7 +107,7 @@ describe('SoneiumEASAdapter — unit (mocked EAS SDK + fake signer, no network)'
     process.env = { ...originalEnv }
   })
 
-  /** Resets the module registry, mocks eas-sdk, and re-imports SoneiumEASAdapter fresh so it picks up whatever process.env is set to at call time. */
+  /** Mocks eas-sdk and re-imports SoneiumEASAdapter fresh, so it picks up the current process.env. */
   async function importMockedAdapter() {
     vi.resetModules()
     const fakeEasInstances: Array<{
@@ -123,9 +117,8 @@ describe('SoneiumEASAdapter — unit (mocked EAS SDK + fake signer, no network)'
     }> = []
 
     vi.doMock('@ethereum-attestation-service/eas-sdk', async () => {
-      // Keep the real SchemaEncoder (and everything else) — attestationCodec.js
-      // is re-imported fresh in this same module-registry reset and still
-      // needs a working SchemaEncoder to encode/decode attestation data. Only
+      // Keep the real SchemaEncoder — attestationCodec.js is re-imported
+      // fresh in this reset and needs it to encode/decode data. Only
       // EAS/SchemaRegistry (the network-talking classes) are faked.
       const actual =
         await vi.importActual<typeof import('@ethereum-attestation-service/eas-sdk')>(
@@ -144,11 +137,10 @@ describe('SoneiumEASAdapter — unit (mocked EAS SDK + fake signer, no network)'
         register = vi.fn()
         constructor(_address: string) {}
       }
-      // Shaped to match the real package's actual CJS-interop shape (see
-      // the note at the top of SoneiumEASAdapter.ts): the source consumes
-      // this via a default import + destructure, not named imports, so
-      // the mock must expose the same fields both at the top level AND
-      // under `default` — real Node gives both for a CJS module.
+      // The source imports this package via a default import + destructure,
+      // not named imports (see the note atop SoneiumEASAdapter.ts), so the
+      // mock must expose the same fields both at the top level and under
+      // `default` — matching what Node actually gives for a CJS module.
       const mocked = {
         ...actual,
         EAS: FakeEAS,
@@ -320,9 +312,9 @@ describe('SoneiumEASAdapter — unit (mocked EAS SDK + fake signer, no network)'
 
   describe('environment selection', () => {
     it('validates schemaUID against the environment the adapter was constructed with, not always Minato', async () => {
-      // Mainnet configured with one schemaUID, Minato's left at another —
-      // constructing the adapter with 'mainnet' must check the attestation
-      // against the Mainnet schemaUID, not silently fall back to Minato's.
+      // Mainnet and Minato configured with different schemaUIDs — the
+      // 'mainnet' adapter must validate against Mainnet's, not fall back
+      // to Minato's.
       process.env.COPYSIGHT_SCHEMA_UID = OTHER_SCHEMA_UID
       process.env.COPYSIGHT_MAINNET_SCHEMA_UID = SCHEMA_UID
       const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()

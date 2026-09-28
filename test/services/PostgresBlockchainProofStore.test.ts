@@ -4,13 +4,10 @@ import { PostgresBlockchainProofStore } from '../../src/services/PostgresBlockch
 import type { BlockchainProof } from '../../src/models/BlockchainProof.js'
 
 /**
- * No live Postgres available in this environment (checked, not
- * assumed — no local install, Docker daemon not running). These tests
- * verify the row<->BlockchainProof mapping and the SQL/param shape sent
- * to the driver, using a mocked Pool — real coverage of the logic that
- * can actually fail silently (wrong column order, wrong null handling),
- * just not of Postgres itself accepting the SQL. That gap is called out
- * explicitly in SETUP.md, not hidden.
+ * No live Postgres in this environment, so these use a mocked Pool to
+ * cover the row<->BlockchainProof mapping and the SQL/param shape sent
+ * to the driver. They don't cover Postgres actually accepting the SQL —
+ * see test/integration/postgresDevnet.test.ts for that.
  */
 function mockPool(queryImpl: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }>): Pool {
   return { query: vi.fn(queryImpl) } as unknown as Pool
@@ -47,7 +44,7 @@ const sampleRow = {
   transaction_hash: sampleProof.transactionHash,
   attester: sampleProof.attester,
   status: sampleProof.status,
-  timestamp: String(sampleProof.timestamp), // pg returns BIGINT as a string — the case this store must handle correctly
+  timestamp: String(sampleProof.timestamp), // pg returns BIGINT columns as strings
   ref_uid: sampleProof.refUID,
   idempotency_key: sampleProof.idempotencyKey,
 }
