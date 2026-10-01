@@ -15,7 +15,8 @@ export class AttestationVerifier {
   constructor(
     private readonly adapter: BlockchainAdapter,
     private readonly expectedSchemaUID: `0x${string}`,
-    private readonly expectedAttester?: `0x${string}`
+    /** One attester, several (e.g. the plain backend key and a royalty-settlement contract address — both are legitimate sources for the same schema), or omitted to skip this check entirely. */
+    private readonly expectedAttesters?: `0x${string}` | ReadonlyArray<`0x${string}`>
   ) {}
 
   async verifySchema(uid: `0x${string}`): Promise<boolean> {
@@ -26,8 +27,15 @@ export class AttestationVerifier {
   async verifyAttester(uid: `0x${string}`): Promise<boolean> {
     const record = await this.adapter.getAttestation(uid)
     if (!record) return false
-    if (!this.expectedAttester) return true // no allowlist configured — nothing to check against
-    return record.attester.toLowerCase() === this.expectedAttester.toLowerCase()
+    // An empty array must behave like "not configured", not like "no address can ever match" —
+    // [] is truthy in JS, so this can't just be `if (!this.expectedAttesters)`.
+    const allowlist = !this.expectedAttesters
+      ? []
+      : Array.isArray(this.expectedAttesters)
+        ? this.expectedAttesters
+        : [this.expectedAttesters]
+    if (allowlist.length === 0) return true // no allowlist configured — nothing to check against
+    return allowlist.some((attester) => record.attester.toLowerCase() === attester.toLowerCase())
   }
 
   /** Confirms these exact file bytes match the assetHash recorded in this attestation. */

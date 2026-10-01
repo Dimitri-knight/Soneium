@@ -284,6 +284,30 @@ describe('SoneiumEASAdapter — unit (mocked EAS SDK + fake signer, no network)'
       fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ revocationTime: 123n }))
       expect(await adapter.verifyAttestation(UID)).toBe(false)
     })
+
+    it('returns true for an attestation whose attester is RoyaltySettlement, not the plain attester key', async () => {
+      // createAttestationWithRoyalty() attests from inside RoyaltySettlement
+      // itself, so `attester` is that contract's address, never
+      // config.attesterAddress — verifyAttestation must accept both.
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      process.env.COPYSIGHT_ATTESTER_ADDRESS = ATTESTER
+      process.env.COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS = OTHER_ATTESTER
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ attester: OTHER_ATTESTER }))
+      expect(await adapter.verifyAttestation(UID)).toBe(true)
+    })
+
+    it('returns false when the attester matches neither the plain attester nor royaltySettlementAddress', async () => {
+      const someUnrelatedAddress = `0x${'ee'.repeat(20)}`
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      process.env.COPYSIGHT_ATTESTER_ADDRESS = ATTESTER
+      process.env.COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS = OTHER_ATTESTER
+      const { SoneiumEASAdapter, fakeEasInstances } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      fakeEasInstances[0].getAttestation.mockResolvedValue(fakeAttestation({ attester: someUnrelatedAddress }))
+      expect(await adapter.verifyAttestation(UID)).toBe(false)
+    })
   })
 
   describe('createAttestation', () => {
@@ -307,6 +331,48 @@ describe('SoneiumEASAdapter — unit (mocked EAS SDK + fake signer, no network)'
       const { SoneiumEASAdapter } = await importMockedAdapter()
       const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
       await expect(adapter.createAttestation(sampleInput)).rejects.toThrow(/COPYSIGHT_SCHEMA_UID is not set/)
+    })
+  })
+
+  describe('createAttestationWithRoyalty — upfront guards (no live chain needed, fails before any contract call)', () => {
+    const ROYALTY_SETTLEMENT_ADDRESS = `0x${'55'.repeat(20)}`
+
+    it('throws when COPYSIGHT_SCHEMA_UID is not configured', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = ''
+      process.env.COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS = ROYALTY_SETTLEMENT_ADDRESS
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      await expect(adapter.createAttestationWithRoyalty(sampleInput, ATTESTER)).rejects.toThrow(/COPYSIGHT_SCHEMA_UID is not set/)
+    })
+
+    it('throws when COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS is not configured', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      process.env.COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS = ''
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      await expect(adapter.createAttestationWithRoyalty(sampleInput, ATTESTER)).rejects.toThrow(
+        /COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS is not set/
+      )
+    })
+
+    it('throws rather than silently dropping a custom recipient — RoyaltySettlement always attests to address(0)', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      process.env.COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS = ROYALTY_SETTLEMENT_ADDRESS
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      await expect(
+        adapter.createAttestationWithRoyalty({ ...sampleInput, recipient: OTHER_ATTESTER }, ATTESTER)
+      ).rejects.toThrow(/does not support a custom recipient or refUID/)
+    })
+
+    it('throws rather than silently dropping a refUID — RoyaltySettlement never supersedes a prior attestation', async () => {
+      process.env.COPYSIGHT_SCHEMA_UID = SCHEMA_UID
+      process.env.COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS = ROYALTY_SETTLEMENT_ADDRESS
+      const { SoneiumEASAdapter } = await importMockedAdapter()
+      const adapter = new SoneiumEASAdapter(fakeSignerWithProvider(async () => ({ status: 1 })))
+      await expect(
+        adapter.createAttestationWithRoyalty({ ...sampleInput, refUID: UID }, ATTESTER)
+      ).rejects.toThrow(/does not support a custom recipient or refUID/)
     })
   })
 

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CopySight × Soneium — Demo</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; line-height: 1.5; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.05rem; margin-top: 0; }
+  section { border: 1px solid #8884; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  button { padding: 8px 16px; font-size: 0.95rem; cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: 0.5; }
+  pre { background: #8881; padding: 12px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+  label { display: block; margin: 8px 0 4px; font-size: 0.9rem; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .error { color: #c0392b; }
+  .ok { color: #27ae60; }
+  input[type=text] { flex: 1; min-width: 240px; padding: 6px; }
+</style>
+</head>
+<body>
+  <h1>CopySight × Soneium — proof of creation demo</h1>
+  <p>Uploads a real file to CopySight's analysis API, records the result as an on-chain attestation on Soneium, then reads it back and verifies it. Runs against whatever network <code>.env</code> currently points at (Minato, or a local devnet during a live demo).</p>
+
+  <section>
+    <h2>1. Analyze</h2>
+    <input type="file" id="fileInput" />
+    <div class="row">
+      <button id="analyzeBtn">Analyze with CopySight</button>
+    </div>
+    <div id="analyzeStatus"></div>
+    <pre id="analyzeResult" hidden></pre>
+  </section>
+
+  <section>
+    <h2>2. Record on Soneium</h2>
+    <label><input type="checkbox" id="royaltyCheckbox" /> Use royalty-gated registration (RoyaltySettlement)</label>
+    <div class="row">
+      <button id="attestBtn" disabled>Record attestation</button>
+    </div>
+    <div id="attestStatus"></div>
+    <pre id="attestResult" hidden></pre>
+  </section>
+
+  <section>
+    <h2>3. Verify an attestation</h2>
+    <div class="row">
+      <input type="text" id="uidInput" placeholder="0x… attestation UID" />
+      <button id="verifyBtn">Verify</button>
+    </div>
+    <div id="verifyStatus"></div>
+    <pre id="verifyResult" hidden></pre>
+  </section>
+
+  <script>
+    let lastPayload = null
+    let analyzeRequestId = 0 // guards against a slower, stale /api/analyze response overwriting a newer one
+
+    function show(el, obj) {
+      el.hidden = false
+      el.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, (_, v) => typeof v === 'bigint' ? v.toString() : v, 2)
+    }
+    function setStatus(el, text, isError) {
+      el.textContent = text
+      el.className = isError ? 'error' : 'ok'
+    }
+
+    function resetAttestState() {
+      lastPayload = null
+      document.getElementById('attestBtn').disabled = true
+    }
+
+    // A new file selection invalidates whatever was last analyzed — the
+    // previous copyScore/payload belongs to a different file.
+    document.getElementById('fileInput').addEventListener('change', () => {
+      resetAttestState()
+      document.getElementById('analyzeResult').hidden = true
+      document.getElementById('analyzeStatus').textContent = ''
+    })
+
+    async function fileToBase64(file) {
+      const buf = await file.arrayBuffer()
+      let binary = ''
+      const bytes = new Uint8Array(buf)
+      const chunkSize = 0x8000
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+      }
+      return btoa(binary)
+    }
+
+    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('fileInput')
+      const statusEl = document.getElementById('analyzeStatus')
+      const resultEl = document.getElementById('analyzeResult')
+      const file = fileInput.files[0]
+      if (!file) { setStatus(statusEl, 'Choose a file first.', true); return }
+
+      const requestId = ++analyzeRequestId
+      resetAttestState() // a fresh analysis is in flight — the old payload (if any) no longer applies
+      setStatus(statusEl, 'Analyzing…')
+      resultEl.hidden = true
+      try {
+        const fileBase64 = await fileToBase64(file)
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileBase64, filename: file.name }),
+        })
+        const body = await res.json()
+        if (requestId !== analyzeRequestId) return // a newer analyze request has since superseded this one
+        if (!res.ok) throw new Error(body.error || 'Analyze failed.')
+
+        lastPayload = body.payload
+        setStatus(statusEl, `copyScore: ${body.payload.copyScore}/100`)
+        show(resultEl, { copyScore: body.payload.copyScore, assetHash: body.payload.assetHash, detectedIPs: body.detectedIPs })
+        document.getElementById('attestBtn').disabled = false
+      } catch (err) {
+        if (requestId !== analyzeRequestId) return
+        setStatus(statusEl, err.message, true)
+      }
+    })
+
+    document.getElementById('attestBtn').addEventListener('click', async () => {
+      const attestBtn = document.getElementById('attestBtn')
+      const statusEl = document.getElementById('attestStatus')
+      const resultEl = document.getElementById('attestResult')
+      if (!lastPayload) { setStatus(statusEl, 'Analyze a file first.', true); return }
+
+      attestBtn.disabled = true // guards against a double-click firing two submissions for one real action
+      setStatus(statusEl, 'Submitting…')
+      resultEl.hidden = true
+      try {
+        const useRoyalty = document.getElementById('royaltyCheckbox').checked
+        const res = await fetch('/api/attest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payload: lastPayload, useRoyalty }),
+        })
+        const body = await res.json()
+        if (!res.ok) throw new Error(body.error || 'Attestation failed.')
+
+        setStatus(statusEl, 'Recorded.')
+        show(resultEl, body)
+        if (body.uid) document.getElementById('uidInput').value = body.uid
+      } catch (err) {
+        setStatus(statusEl, err.message, true)
+      } finally {
+        attestBtn.disabled = false
+      }
+    })
+
+    document.getElementById('verifyBtn').addEventListener('click', async () => {
+      const statusEl = document.getElementById('verifyStatus')
+      const resultEl = document.getElementById('verifyResult')
+      const uid = document.getElementById('uidInput').value.trim()
+      if (!uid) { setStatus(statusEl, 'Paste a UID first.', true); return }
+
+      setStatus(statusEl, 'Verifying…')
+      resultEl.hidden = true
+      try {
+        const res = await fetch(`/api/verify/${uid}`)
+        const body = await res.json()
+        if (!res.ok) throw new Error(body.error || 'Verify failed.')
+
+        setStatus(statusEl, body.checks.schema && body.checks.attester && body.checks.notRevoked ? 'Valid CopySight attestation.' : 'Present, but failed a check — see below.')
+        show(resultEl, body)
+      } catch (err) {
+        setStatus(statusEl, err.message, true)
+      }
+    })
+  </script>
+</body>
+</html>

@@ -92,6 +92,8 @@ export interface EnvironmentConfig {
   attesterAddress: `0x${string}` | ''
   attesterPrivateKey: string
   resolverAddress: `0x${string}` | ''
+  rightsRegistryAddress: `0x${string}` | ''
+  royaltySettlementAddress: `0x${string}` | ''
 }
 
 const environments: Record<NetworkEnvironment, EnvironmentConfig> = {
@@ -108,6 +110,14 @@ const environments: Record<NetworkEnvironment, EnvironmentConfig> = {
     resolverAddress: validateAddress(
       'COPYSIGHT_RESOLVER_ADDRESS',
       process.env.COPYSIGHT_RESOLVER_ADDRESS || ''
+    ),
+    rightsRegistryAddress: validateAddress(
+      'COPYSIGHT_RIGHTS_REGISTRY_ADDRESS',
+      process.env.COPYSIGHT_RIGHTS_REGISTRY_ADDRESS || ''
+    ),
+    royaltySettlementAddress: validateAddress(
+      'COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS',
+      process.env.COPYSIGHT_ROYALTY_SETTLEMENT_ADDRESS || ''
     ),
   },
   mainnet: {
@@ -126,6 +136,14 @@ const environments: Record<NetworkEnvironment, EnvironmentConfig> = {
     resolverAddress: validateAddress(
       'COPYSIGHT_MAINNET_RESOLVER_ADDRESS',
       process.env.COPYSIGHT_MAINNET_RESOLVER_ADDRESS || ''
+    ),
+    rightsRegistryAddress: validateAddress(
+      'COPYSIGHT_MAINNET_RIGHTS_REGISTRY_ADDRESS',
+      process.env.COPYSIGHT_MAINNET_RIGHTS_REGISTRY_ADDRESS || ''
+    ),
+    royaltySettlementAddress: validateAddress(
+      'COPYSIGHT_MAINNET_ROYALTY_SETTLEMENT_ADDRESS',
+      process.env.COPYSIGHT_MAINNET_ROYALTY_SETTLEMENT_ADDRESS || ''
     ),
   },
 }

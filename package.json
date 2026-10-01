@@ -9,8 +9,10 @@
     "deploy:resolver": "tsx scripts/deployCopySightResolver.ts",
     "register:schema": "tsx scripts/registerSoneiumSchema.ts",
     "manage:attester": "tsx scripts/manageAttester.ts",
+    "deploy:royalty": "tsx scripts/deployRoyaltyContracts.ts",
     "migrate:db": "tsx scripts/migrateDatabase.ts",
     "demo:flow": "tsx demo/runFullFlow.ts",
+    "demo:web": "tsx demo/webServer.ts",
     "test": "vitest run",
     "test:devnet": "vitest run test/integration/localAnvilDevnet.test.ts --config vitest.devnet.config.ts",
     "test:postgres": "vitest run test/integration/postgresDevnet.test.ts --config vitest.postgres.config.ts"

@@ -73,6 +73,29 @@ describe('AttestationVerifier', () => {
     expect(await stillNoAllowlist.verifyAttester(UID)).toBe(true)
   })
 
+  it('verifyAttester accepts any address in a multi-attester allowlist (e.g. the plain backend key and a royalty-settlement contract address for the same schema)', async () => {
+    const recordFromSecond: AttestationRecord = { ...validRecord, attester: OTHER_ATTESTER }
+
+    const verifierForFirst = new AttestationVerifier(fakeAdapter(validRecord), SCHEMA_UID, [ATTESTER, OTHER_ATTESTER])
+    expect(await verifierForFirst.verifyAttester(UID)).toBe(true)
+
+    const verifierForSecond = new AttestationVerifier(fakeAdapter(recordFromSecond), SCHEMA_UID, [ATTESTER, OTHER_ATTESTER])
+    expect(await verifierForSecond.verifyAttester(UID)).toBe(true)
+  })
+
+  it('verifyAttester passes regardless of attester when given an empty allowlist — an empty array is truthy in JS, so this must not be confused with "no address can ever match"', async () => {
+    const verifier = new AttestationVerifier(fakeAdapter(validRecord), SCHEMA_UID, [])
+    expect(await verifier.verifyAttester(UID)).toBe(true)
+  })
+
+  it('verifyAttester fails when the attester matches none of a multi-attester allowlist', async () => {
+    const thirdAttester = '0x000000000000000000000000000000000000cc' as const
+    const recordFromThird: AttestationRecord = { ...validRecord, attester: thirdAttester }
+
+    const verifier = new AttestationVerifier(fakeAdapter(recordFromThird), SCHEMA_UID, [ATTESTER, OTHER_ATTESTER])
+    expect(await verifier.verifyAttester(UID)).toBe(false)
+  })
+
   it('verifyAttester compares addresses case-insensitively', async () => {
     const mixedCaseAttester = '0x000000000000000000000000000000000000AA' as const
     const recordWithMixedCase: AttestationRecord = { ...validRecord, attester: mixedCaseAttester }
