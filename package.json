@@ -13,6 +13,7 @@
     "migrate:db": "tsx scripts/migrateDatabase.ts",
     "demo:flow": "tsx demo/runFullFlow.ts",
     "demo:web": "tsx demo/webServer.ts",
+    "demo:local-devnet": "tsx demo/startLocalDevnet.ts",
     "test": "vitest run",
     "test:devnet": "vitest run test/integration/localAnvilDevnet.test.ts --config vitest.devnet.config.ts",
     "test:postgres": "vitest run test/integration/postgresDevnet.test.ts --config vitest.postgres.config.ts"

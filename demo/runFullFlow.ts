@@ -72,7 +72,7 @@ async function main() {
     })
 
     console.log(
-      'STOPS HERE — on-chain submission needs a funded Minato wallet + registered schemaUID (neither exists yet).'
+      //'STOPS HERE — on-chain submission needs a funded Minato wallet + registered schemaUID (neither exists yet).'
     )
     succeeded.push(filename)
   }

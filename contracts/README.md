@@ -139,7 +139,7 @@ transaction correctly reverts with it restored.
   call being rejected live, and the self-payment exemption, all against
   a real anvil chain. **`npm run test:devnet` → 9/9 passing.** See
   `docs/SETUP.md`'s "Royalty feature" and "Production-readiness pass"
-  sections for the full writeup, including the remaining questions
-  still worth a direct answer from the client (payment token, registry
-  population process, frontend ownership) — none of which block this
-  contract's own correctness.
+  sections for the full writeup. The four open questions originally
+  flagged there (payment token, known-IP registry population process,
+  wallet-signing, frontend ownership) are all now confirmed resolved —
+  each matches what was already built, so none required a code change.

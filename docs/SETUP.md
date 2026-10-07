@@ -262,11 +262,11 @@ Client confirmed royalties are wanted: `Royalty = IP Rights Price × CopyScore /
   - Also caught and fixed a hand-typed test fixture mismatch (a fabricated payer private key paired with the wrong address) by verifying the real key→address pairing directly against a live anvil's own account printout, rather than re-deriving it by hand.
 - Re-verified everything together after all of the above: `npx tsc --noEmit` clean, **`npm test` → 195 passing, 6 skipped** across 21 test files, `forge test` → 38/38, `test:devnet` → 7/7.
 
-**Genuinely not blocked by, but worth the client's direct answer eventually** (none of these block Phase-1 creator-to-creator contract engineering — payment token can be built generically against any ERC-20 as done above, registry population only affects the separate Phase-2 external-IP path, wallet-signing only affects *who* calls the contract not its logic, and frontend doesn't block backend work):
-1. **Payment token** — which ERC-20 (or native ETH) actually gets used for real royalty payments on Mainnet.
-2. **Registry population process** — how `registerKnownIP()` actually gets populated for real external IPs (celebrities/brands) — a real-world rights-verification process, not something this contract can determine on its own.
-3. ~~**Wallet-signing confirmation**~~ — **resolved by the redesign below**: the backend submits on the real payer's behalf (same model as every other attestation), while the payer still approves spend from their own wallet directly. Worth a one-line confirmation this is the intended split, not a further open design question.
-4. **Frontend ownership** — an older architecture doc assigned this to the client's own "CopySight Frontend" team; worth confirming that still holds for the royalty-specific UI states.
+**Originally flagged for the client's direct answer — all four now confirmed resolved, none required a code change:**
+1. ~~**Payment token**~~ — **confirmed**: any ERC-20, the rights holder's own choice per asset, exactly as already built (`RightsRegistry.setTerms(assetHash, basePrice, paymentToken)`). Not a single hardcoded Mainnet token.
+2. ~~**Registry population process**~~ — **confirmed**: manual off-chain curation (a trusted team verifies real-world rights relationships for external IPs — celebrities, brands), then the contract owner calls the existing owner-only `registerKnownIP()`. Exactly the process already built; no separate bulk-import or oracle mechanism needed.
+3. ~~**Wallet-signing confirmation**~~ — **confirmed, resolved by the redesign below**: the backend submits on the real payer's behalf (same model as every other attestation), while the payer still approves spend from their own wallet directly.
+4. ~~**Frontend ownership**~~ — **confirmed**: finalized on the client's own side, not part of this module's scope.
 
 ## Production-readiness pass on the royalty feature — real vulnerabilities found and fixed, not just reviewed
 
